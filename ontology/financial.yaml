@@ -1,0 +1,332 @@
+# Hand-authored ontology for the BIRD `financial` database (Czech bank, PKDD'99 data).
+# Source of truth for data/ontology.db (built by scripts/build_ontology.py).
+#
+# Derived from data/database_description/*.csv, from distinct values in
+# data/financial.sqlite, and from the build half of the BIRD questions
+# (questions/build.json). The test half was not used.
+#
+# kind: term          business concept -> columns and coded values
+#       sql_attribute reviewed SQL expression to reuse
+#       relationship  how tables join
+
+entries:
+
+  # ------------------------------------------------------------------ terms
+
+  - id: district_name
+    kind: term
+    name: District name
+    description: >
+      Name of one of the 77 Czech districts, stored in district.A2 (e.g.
+      'Jesenik', 'Litomerice', 'Beroun', 'Prachatice'). Prague's district is
+      named 'Hl.m. Praha' (district_id 1), not 'Prague'. A district is smaller
+      than a region (see region, district.A3). "Branch" in questions usually
+      means the district of the account's branch. When an answer is a
+      district, report its name (A2), not just its district_id.
+    synonyms: [district, district name, town, city, branch name, branch location name, location]
+    columns: [district.A2, district.district_id]
+    sql: "district.A2 = 'Jesenik'"
+
+  - id: region
+    kind: term
+    name: Region
+    description: >
+      Region a district belongs to, stored in district.A3. Exactly 8 values
+      (case-sensitive, lower-case compass word): 'Prague', 'central Bohemia',
+      'south Bohemia', 'west Bohemia', 'north Bohemia', 'east Bohemia',
+      'south Moravia', 'north Moravia'. Use A3 for questions like "in East
+      Bohemia" or "in the region of South Bohemia".
+    synonyms: [region, area, territory, East Bohemia, North Bohemia, South Bohemia, Moravia, Prague region]
+    columns: [district.A3]
+    sql: "district.A3 = 'east Bohemia'  -- exact case: 'Prague', 'south Moravia', ..."
+
+  - id: average_salary
+    kind: term
+    name: Average salary
+    description: >
+      Average salary (income) of residents of a district, stored as an integer
+      in district.A11 (range 8110 - 12541). Questions about "average salary",
+      "average income" or "salary of the branch/district" refer to A11; it is
+      a district attribute, not a per-client value.
+    synonyms: [average salary, average income, income, salary, wage, A11]
+    columns: [district.A11]
+    sql: "district.A11"
+
+  - id: unemployment_rate
+    kind: term
+    name: Unemployment rate (1995, 1996)
+    description: >
+      District unemployment rate in percent. district.A12 = unemployment rate
+      in 1995 (one NULL, for Jesenik); district.A13 = unemployment rate in
+      1996. Pick the column by year.
+    synonyms: [unemployment, unemployment rate, jobless rate, unemployment ratio 1995, unemployment ratio 1996, A12, A13]
+    columns: [district.A12, district.A13]
+    sql: "district.A12 /* 1995 */, district.A13 /* 1996 */"
+
+  - id: inhabitants
+    kind: term
+    name: Number of inhabitants
+    description: >
+      Population of a district, district.A4. It is stored as TEXT, so cast it
+      before comparing or sorting: CAST(district.A4 AS INTEGER). Related
+      district statistics: A5-A8 = number of municipalities with < 500,
+      500-1999, 2000-9999 and >= 10000 inhabitants (A5-A7 are TEXT); A9 =
+      number of cities; A10 = ratio of urban inhabitants (percent); A14 =
+      number of entrepreneurs per 1000 inhabitants.
+    synonyms: [inhabitants, population, number of residents, biggest district, most populated, entrepreneurs, urban ratio, municipalities, A4]
+    columns: [district.A4, district.A5, district.A6, district.A7, district.A8, district.A9, district.A10, district.A14]
+    sql: "CAST(district.A4 AS INTEGER)"
+
+  - id: committed_crimes
+    kind: term
+    name: Number of committed crimes
+    description: >
+      Number of crimes committed in a district: district.A15 = crimes in 1995
+      (one NULL, for Jesenik); district.A16 = crimes in 1996.
+    synonyms: [crimes, committed crimes, crime count, crime rate, A15, A16]
+    columns: [district.A15, district.A16]
+    sql: "district.A15 /* 1995 */, district.A16 /* 1996 */"
+
+  - id: statement_frequency
+    kind: term
+    name: Statement issuance frequency
+    description: >
+      How often the bank issues account statements, account.frequency. Codes
+      are Czech: 'POPLATEK MESICNE' = monthly issuance (4167 accounts),
+      'POPLATEK TYDNE' = weekly issuance (240), 'POPLATEK PO OBRATU' =
+      issuance after transaction (93).
+    synonyms: [statement frequency, issuance, monthly statement, weekly statement, statement after transaction, issuance after transaction, frequency]
+    columns: [account.frequency]
+    sql: "account.frequency = 'POPLATEK MESICNE'  -- monthly; 'POPLATEK TYDNE' weekly; 'POPLATEK PO OBRATU' after transaction"
+
+  - id: loan
+    kind: term
+    name: Loan
+    description: >
+      A granted loan, one row per account that has a loan (682 loans, at most
+      one per account). loan.amount = approved amount; loan.duration = length
+      in months (12, 24, 36, 48 or 60; "validity"); loan.payments = monthly
+      payment; loan.date = approval date ('YYYY-MM-DD').
+    synonyms: [loan, credit, approved amount, loan amount, loan duration, loan validity, monthly payment, installment]
+    columns: [loan.loan_id, loan.account_id, loan.amount, loan.duration, loan.payments, loan.date]
+    sql: "loan.amount, loan.duration, loan.payments"
+
+  - id: loan_status
+    kind: term
+    name: Loan repayment status
+    description: >
+      Repayment status, loan.status: 'A' = contract finished, no problems;
+      'B' = contract finished, loan not paid; 'C' = running contract, OK so
+      far; 'D' = running contract, client in debt. Running/active loans are
+      C or D; finished loans are A or B.
+    synonyms: [loan status, repayment status, running contract, active loan, finished contract, paid off, client in debt, defaulted loan, bad loan]
+    columns: [loan.status]
+    sql: "loan.status IN ('C', 'D')  -- running; IN ('A', 'B') finished; 'D' in debt; 'B' not paid"
+
+  - id: transaction_type
+    kind: term
+    name: Transaction type and mode
+    description: >
+      One row in trans is one movement of money on an account. trans.type is
+      the direction: 'PRIJEM' = credit (money in), 'VYDAJ' = withdrawal /
+      debit (money out); a few rows use 'VYBER' (cash withdrawal) as type.
+      trans.operation is the mode: 'VYBER KARTOU' = credit card withdrawal,
+      'VKLAD' = credit in cash, 'PREVOD Z UCTU' = collection from another
+      bank, 'VYBER' = withdrawal in cash, 'PREVOD NA UCET' = remittance to
+      another bank, NULL = interest credited. trans.amount = amount moved;
+      trans.balance = balance after the transaction (negative balance means
+      trans.balance < 0); trans.bank / trans.account = partner bank code and
+      account.
+    synonyms: [transaction, credit, debit, withdrawal, deposit, credit card withdrawal, cash withdrawal, remittance, balance, negative balance, PRIJEM, VYDAJ]
+    columns: [trans.type, trans.operation, trans.amount, trans.balance, trans.bank, trans.account]
+    sql: "trans.type = 'VYDAJ'  -- withdrawal; 'PRIJEM' credit; trans.operation = 'VYBER KARTOU' card withdrawal"
+
+  - id: transaction_purpose
+    kind: term
+    name: Transaction purpose (k_symbol)
+    description: >
+      Characterisation of a transaction, trans.k_symbol: 'POJISTNE' =
+      insurance payment, 'SLUZBY' = payment for statement, 'UROK' = interest
+      credited, 'SANKC. UROK' = sanction interest for negative balance,
+      'SIPO' = household payment, 'DUCHOD' = old-age pension, 'UVER' = loan
+      payment. Often NULL or a single space ' ' (unknown).
+    synonyms: [purpose of transaction, k_symbol, insurance payment, household payment, pension, interest, sanction interest, loan payment, statement fee]
+    columns: [trans.k_symbol]
+    sql: "trans.k_symbol = 'DUCHOD'  -- old-age pension"
+
+  - id: permanent_order
+    kind: term
+    name: Permanent order (standing order)
+    description: >
+      Table "order" holds permanent (standing) payment orders debited from an
+      account. "order" is an SQL keyword: always write it as `order`.
+      order.amount = debited amount; order.bank_to / order.account_to =
+      recipient bank (two-letter code) and account; order.k_symbol = purpose:
+      'POJISTNE' = insurance payment, 'SIPO' = household payment, 'LEASING' =
+      leasing, 'UVER' = loan payment, '' (empty) = unspecified.
+    synonyms: [permanent order, standing order, payment order, debit order, recipient bank, aim of debiting, purpose of payment, leasing]
+    columns: [order.order_id, order.account_id, order.amount, order.bank_to, order.account_to, order.k_symbol]
+    sql: "SELECT o.k_symbol, SUM(o.amount) FROM `order` AS o WHERE o.account_id = 3 GROUP BY o.k_symbol"
+
+  - id: disposition_type
+    kind: term
+    name: Disposition type (owner vs disponent)
+    description: >
+      disp links a client to an account with a role, disp.type: 'OWNER' (each
+      of the 4500 accounts has exactly one) or 'DISPONENT' (a user authorised
+      to operate someone else's account, 869 rows). Only the owner can issue
+      permanent orders or apply for a loan, so "eligible for loans" means
+      disp.type = 'OWNER'. To count account holders/customers without double
+      counting disponents, filter disp.type = 'OWNER'.
+    synonyms: [disposition, owner, own an account, account owner, account holder, disponent, user, authorised user, eligible for loan, right to issue permanent orders]
+    columns: [disp.type, disp.disp_id]
+    sql: "disp.type = 'OWNER'"
+
+  - id: card_type
+    kind: term
+    name: Credit card type
+    description: >
+      Credit cards, card.type: 'junior' = junior class, 'classic' = standard
+      class, 'gold' = high-level card (values are lower-case). card.issued =
+      issue date ('YYYY-MM-DD'). A card belongs to a disposition (card.disp_id),
+      not directly to a client or account.
+    synonyms: [credit card, card, card type, gold card, classic card, junior card, high-level card, card issued]
+    columns: [card.type, card.issued, card.card_id]
+    sql: "card.type = 'gold'"
+
+  - id: gender
+    kind: term
+    name: Client gender
+    description: >
+      client.gender: 'F' = female (woman), 'M' = male (man).
+    synonyms: [gender, sex, female, male, woman, women, man, men]
+    columns: [client.gender]
+    sql: "client.gender = 'F'"
+
+  # ------------------------------------------------------------- sql attributes
+
+  - id: date_filter
+    kind: sql_attribute
+    name: Filter by year, month or day
+    description: >
+      Every date column (account.date = account opening date, loan.date =
+      loan approval date, trans.date = transaction date, card.issued = card
+      issue date, client.birth_date) is stored as TEXT 'YYYY-MM-DD' (the BIRD
+      description saying YYMMDD is wrong). Compare whole dates as strings and
+      extract parts with STRFTIME.
+    synonyms: [year, in 1996, month, January 1996, date, opened in, issued in, approved in, before, after, account opening date]
+    columns: [account.date, loan.date, trans.date, card.issued, client.birth_date]
+    sql: "STRFTIME('%Y', account.date) = '1996'  -- month: STRFTIME('%Y-%m', trans.date) = '1996-01'; day: loan.date = '1994-08-25'"
+
+  - id: client_age
+    kind: sql_attribute
+    name: Client age, youngest and oldest
+    description: >
+      Age in whole years of a client at a reference date (use a date from the
+      question, e.g. the loan date; the data ends in 1998). Youngest client =
+      latest birth_date (ORDER BY birth_date DESC); oldest = earliest
+      birth_date (ORDER BY birth_date ASC).
+    synonyms: [age, client age, how old, youngest client, oldest client, born, birthday, birth date]
+    columns: [client.birth_date]
+    sql: "CAST((JULIANDAY(ref_date) - JULIANDAY(client.birth_date)) / 365.25 AS INTEGER)"
+
+  - id: loan_good_standing
+    kind: sql_attribute
+    name: Loan in good standing / problem loan
+    description: >
+      Reviewed classification of loans. Good standing = no repayment problem:
+      status 'A' (finished OK) or 'C' (running OK). Problem loan = 'B'
+      (finished, not paid) or 'D' (running, in debt).
+    synonyms: [good loan, loan in good standing, healthy loan, no problems, problem loan, bad loan, default, risky loan]
+    columns: [loan.status]
+    sql: "CASE WHEN loan.status IN ('A', 'C') THEN 'good standing' ELSE 'problem' END"
+
+  - id: unemployment_rate_change
+    kind: sql_attribute
+    name: Unemployment rate change 1995 -> 1996
+    description: >
+      Change of a district's unemployment rate from 1995 (A12) to 1996 (A13).
+      Percentage increment = (A13 - A12) * 100 / A12; absolute change in
+      percentage points = A13 - A12.
+    synonyms: [unemployment increase, unemployment growth, unemployment increment, change in unemployment]
+    columns: [district.A12, district.A13]
+    sql: "district.A13 - district.A12 AS change_points, (district.A13 - district.A12) * 100.0 / district.A12 AS change_percent"
+
+  - id: percentage_share
+    kind: sql_attribute
+    name: Percentage / share of rows
+    description: >
+      Reviewed pattern for "what percentage / proportion / share of X are Y".
+      Multiply by 100.0 (or CAST AS REAL) to avoid SQLite integer division,
+      and count the base population in the denominator.
+    synonyms: [percentage, percent, proportion, share, ratio, fraction, how many percent]
+    columns: []
+    sql: "CAST(SUM(CASE WHEN client.gender = 'F' THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*)"
+
+  # ---------------------------------------------------------------- relationships
+
+  - id: client_account
+    kind: relationship
+    name: Client to account (through disp)
+    description: >
+      Clients and accounts are many-to-many and are only connected through
+      table disp; there is no account_id in client. Add disp.type = 'OWNER'
+      to get just the account owner.
+    synonyms: [client account, customer account, account of client, client's account, account holder, who owns the account]
+    columns: [client.client_id, disp.client_id, disp.account_id, account.account_id]
+    sql: "client JOIN disp ON disp.client_id = client.client_id JOIN account ON account.account_id = disp.account_id  -- owners only: AND disp.type = 'OWNER'"
+
+  - id: account_district
+    kind: relationship
+    name: Account to branch district
+    description: >
+      account.district_id is the location of the branch where the account
+      was opened. Join to district to get the branch's district name (A2),
+      region (A3), average salary (A11) and other statistics.
+    synonyms: [branch, branch location, account district, account region, where account was opened, bank branch]
+    columns: [account.district_id, district.district_id]
+    sql: "account JOIN district ON district.district_id = account.district_id"
+
+  - id: client_district
+    kind: relationship
+    name: Client to home district
+    description: >
+      client.district_id is the district where the client lives (may differ
+      from the account's branch district for about 9% of clients). Use it for
+      questions about clients living in or coming from a district or region.
+    synonyms: [client district, client region, living in, client address, residence, customers in region]
+    columns: [client.district_id, district.district_id]
+    sql: "client JOIN district ON district.district_id = client.district_id"
+
+  - id: loan_account
+    kind: relationship
+    name: Loan to account
+    description: >
+      loan.account_id references account; each account has at most one loan.
+      To reach the client of a loan go loan -> account -> disp -> client
+      (filter disp.type = 'OWNER' for the borrower).
+    synonyms: [loan account, borrower, account with loan, client of a loan, who took the loan]
+    columns: [loan.account_id, account.account_id]
+    sql: "loan JOIN account ON account.account_id = loan.account_id"
+
+  - id: card_disp
+    kind: relationship
+    name: Card to disposition (client and account)
+    description: >
+      card.disp_id references disp. A card reaches its client via
+      disp.client_id and its account via disp.account_id; card has no
+      client_id or account_id column.
+    synonyms: [card holder, card owner, client's card, account with card, card client]
+    columns: [card.disp_id, disp.disp_id, disp.client_id, disp.account_id]
+    sql: "card JOIN disp ON disp.disp_id = card.disp_id JOIN client ON client.client_id = disp.client_id"
+
+  - id: trans_account
+    kind: relationship
+    name: Transaction to account
+    description: >
+      trans.account_id references account (about 1.06 million transactions).
+      Reach the client via account -> disp -> client and the branch via
+      account -> district. Prefer filtering trans first; it is a large table.
+    synonyms: [account transactions, transactions of client, transactions in district, transaction history]
+    columns: [trans.account_id, account.account_id]
+    sql: "trans JOIN account ON account.account_id = trans.account_id"

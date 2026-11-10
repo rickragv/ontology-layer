@@ -1,0 +1,14 @@
+[project]
+name = "ontology-layer"
+version = "0.1.0"
+description = "Demo: an ontology layer helps a local LLM write correct SQL (BIRD financial DB, Google ADK, Ollama)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "google-adk",
+    "litellm",
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "pyyaml",
+]

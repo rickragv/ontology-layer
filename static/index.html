@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ontology Chat</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#151a22; --muted:#5b6472; --line:#dde1e8;
+  --accent:#2c56c9; --accent-soft:#e8eefc; --ok:#1b7f55; --ok-soft:#e3f4ec; --bad:#b3372f; --bad-soft:#fbe9e7;
+  --on-accent:#ffffff; --scrim:rgba(21,26,34,.4); --shadow:0 8px 28px rgba(21,26,34,.14);
+  --radius:8px;
+  --font-head:"Space Grotesk","Inter",system-ui,sans-serif;
+  --font-text:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#11141a; --surface:#191d25; --fg:#e8ebf0; --muted:#9aa3b2; --line:#2b313c;
+    --accent:#8aa8ff; --accent-soft:#1f2a47; --ok:#5fcf9c; --ok-soft:#16302a; --bad:#ff8f85; --bad-soft:#3a1f1d;
+    --on-accent:#11141a; --scrim:rgba(0,0,0,.6); --shadow:0 8px 28px rgba(0,0,0,.5);
+  }
+}
+* { box-sizing:border-box; }
+html,body { height:100%; margin:0; }
+body { background:var(--bg); color:var(--fg); font:14px/1.5 var(--font-text); overflow:hidden; }
+button,textarea,input { font:inherit; color:inherit; }
+button { cursor:pointer; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+code,pre,.mono { font-family:var(--font-mono); }
+.app { height:100vh; height:100dvh; display:flex; flex-direction:column; }
+
+/* header */
+header { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--line); }
+.brand { font:600 17px var(--font-head); letter-spacing:-.01em; margin:0; margin-right:4px; }
+.status { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); min-width:0; }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--muted); flex:none; }
+.status.ok .dot { background:var(--ok); }
+.status.warn { color:var(--bad); background:var(--bad-soft); padding:2px 8px; border-radius:var(--radius); }
+.status.warn .dot { background:var(--bad); }
+.spacer { flex:1; }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:var(--radius); padding:2px; background:var(--bg); }
+.seg button { border:0; background:transparent; padding:5px 12px; border-radius:6px; color:var(--muted); font-weight:500; font-size:13px; }
+.seg button[aria-checked="true"] { background:var(--surface); color:var(--accent); box-shadow:0 0 0 1px var(--line); }
+.btn { border:1px solid var(--line); background:var(--surface); border-radius:var(--radius); padding:6px 12px; font-size:13px; font-weight:500; }
+.btn:hover { background:var(--accent-soft); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+.btn.primary:hover { background:var(--accent); opacity:.9; }
+.btn.danger { color:var(--bad); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn.small { padding:2px 8px; font-size:12px; }
+
+/* main */
+main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:16px; padding:16px; }
+.chat { display:flex; flex-direction:column; min-height:0; min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); }
+.scroll { flex:1; min-height:0; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
+.empty { margin:auto; max-width:520px; text-align:center; padding:12px 0; }
+.empty h2 { font:600 20px var(--font-head); margin:0 0 6px; }
+.empty p { color:var(--muted); margin:0 0 16px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.chip { border:1px solid var(--line); background:var(--bg); border-radius:var(--radius); padding:6px 10px; font-size:13px; text-align:left; }
+.chip:hover { border-color:var(--accent); background:var(--accent-soft); }
+.msg { max-width:100%; min-width:0; }
+.msg.user { align-self:flex-end; background:var(--accent-soft); border-radius:var(--radius); padding:8px 12px; max-width:85%; white-space:pre-wrap; overflow-wrap:anywhere; }
+.msg.assistant { border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; background:var(--surface); align-self:stretch; }
+.msg.assistant.selected { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.msg.assistant.selectable { cursor:pointer; }
+.mhead { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; color:var(--muted); }
+.tag { font:500 11px var(--font-mono); padding:1px 6px; border-radius:6px; background:var(--accent-soft); color:var(--accent); }
+.tag.base { background:var(--bg); color:var(--muted); border:1px solid var(--line); }
+.details-btn { display:none; margin-left:auto; }
+.steps { list-style:none; margin:0 0 8px; padding:0; display:flex; flex-direction:column; gap:3px; font-size:12.5px; color:var(--muted); }
+.steps li { display:flex; align-items:baseline; gap:8px; overflow-wrap:anywhere; }
+.si { width:14px; flex:none; text-align:center; font-family:var(--font-mono); }
+.steps li.run { color:var(--fg); }
+.steps li.run .si { display:inline-block; width:10px; height:10px; border:2px solid var(--line); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; margin:0 2px; align-self:center; }
+.steps li.ok .si { color:var(--ok); }
+.steps li.bad { color:var(--bad); }
+.steps li.bad .si { color:var(--bad); }
+@keyframes spin { to { transform:rotate(360deg); } }
+.working { font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+.working::before { content:""; width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity:.25; } }
+.err { background:var(--bad-soft); color:var(--bad); border-radius:var(--radius); padding:6px 10px; margin-top:6px; overflow-wrap:anywhere; }
+.foot { margin-top:6px; font-size:11.5px; color:var(--muted); }
+.md > :first-child { margin-top:0; } .md > :last-child { margin-bottom:0; }
+.md p { margin:0 0 8px; overflow-wrap:anywhere; }
+.md ul,.md ol { margin:0 0 8px; padding-left:20px; }
+.md code { background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:12.5px; }
+.md pre { background:var(--bg); border:1px solid var(--line); border-radius:var(--radius); padding:8px 10px; overflow-x:auto; margin:0 0 8px; }
+.md pre code { border:0; padding:0; background:none; }
+.composer { border-top:1px solid var(--line); padding:10px 12px; display:flex; gap:8px; align-items:flex-end; }
+.composer textarea { flex:1; resize:none; max-height:140px; min-height:40px; padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius); background:var(--bg); line-height:1.4; }
+.composer textarea:disabled { opacity:.6; }
+
+/* panel */
+.panel { display:flex; flex-direction:column; min-height:0; min-width:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); }
+.ptabs { display:flex; align-items:center; gap:4px; padding:8px 12px 0; border-bottom:1px solid var(--line); }
+.ptabs h2 { font:600 14px var(--font-head); margin:0 auto 0 0; padding-bottom:8px; }
+.ptab { border:0; background:none; padding:6px 10px; color:var(--muted); border-bottom:2px solid transparent; font-weight:500; font-size:13px; }
+.ptab[aria-selected="true"] { color:var(--accent); border-bottom-color:var(--accent); }
+.pclose { display:none; }
+.pbody { flex:1; min-height:0; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:18px; }
+.sec h3 { font:600 12px var(--font-head); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 8px; display:flex; align-items:center; gap:8px; }
+.note { color:var(--muted); font-size:13px; margin:0; }
+.card { border:1px solid var(--line); border-radius:var(--radius); padding:10px; margin-bottom:8px; background:var(--surface); }
+.card .t { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-weight:600; }
+.card p { margin:4px 0; color:var(--muted); font-size:13px; }
+.badge { font:500 11px var(--font-text); padding:1px 7px; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
+.cols { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+.cols code { font-size:11.5px; background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 5px; }
+.snip { margin:6px 0 0; padding:6px 8px; background:var(--bg); border-radius:6px; font-size:12px; overflow-x:auto; white-space:pre; }
+.quiet { font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px dashed var(--line); }
+.quiet .sc { font-family:var(--font-mono); font-size:11.5px; }
+.sqlb { border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; }
+.sqlh { display:flex; align-items:center; gap:8px; padding:4px 8px; font-size:12px; background:var(--bg); border-bottom:1px solid var(--line); }
+.sqlh .btn { margin-left:auto; }
+.pill { font-weight:500; padding:0 7px; border-radius:999px; font-size:11.5px; }
+.pill.ok { background:var(--ok-soft); color:var(--ok); }
+.pill.bad { background:var(--bad-soft); color:var(--bad); }
+.pill.run { background:var(--accent-soft); color:var(--accent); }
+.sqlb pre { margin:0; padding:8px 10px; font-size:12.5px; overflow-x:auto; }
+.sqlb .err { margin:0; border-radius:0; font-size:12.5px; }
+.tw { overflow:auto; border:1px solid var(--line); border-radius:var(--radius); max-height:340px; }
+table { border-collapse:collapse; width:100%; font-size:12.5px; }
+th,td { padding:5px 10px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+th { position:sticky; top:0; background:var(--bg); font-weight:600; }
+td.num { text-align:right; font-variant-numeric:tabular-nums; font-family:var(--font-mono); }
+th.num { text-align:right; }
+tr:last-child td { border-bottom:0; }
+td.null { color:var(--muted); }
+.meta { font-size:12px; color:var(--muted); margin-top:6px; }
+.search { width:100%; padding:7px 10px; border:1px solid var(--line); border-radius:var(--radius); background:var(--bg); }
+.kind-h { font:600 12px var(--font-head); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:6px 0; }
+.scrim { display:none; }
+
+@media (max-width: 860px) {
+  body { overflow:hidden; }
+  main { grid-template-columns:minmax(0,1fr); padding:8px; gap:0; }
+  header { padding:8px 12px; }
+  .spacer { display:none; }
+  .details-btn { display:inline-block; }
+  .panel { display:none; }
+  .panel.open { display:flex; position:fixed; inset:auto 0 0 0; height:85vh; height:85dvh; z-index:20; border-radius:var(--radius) var(--radius) 0 0; box-shadow:var(--shadow); }
+  .panel.open ~ .scrim, .scrim.show { display:block; position:fixed; inset:0; background:var(--scrim); z-index:10; }
+  .pclose { display:inline-block; }
+  .msg.user { max-width:92%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+  .steps li.run .si { border-top-color:var(--accent); border-right-color:var(--accent); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 class="brand">Ontology Chat</h1>
+    <span class="status" id="status" role="status"><span class="dot"></span><span id="statusText">Checking backend...</span></span>
+    <span class="spacer"></span>
+    <div class="seg" role="radiogroup" aria-label="Mode" id="seg">
+      <button type="button" role="radio" aria-checked="true" data-mode="ontology">With ontology</button>
+      <button type="button" role="radio" aria-checked="false" data-mode="baseline">Baseline</button>
+    </div>
+    <button type="button" class="btn" id="newChat">New chat</button>
+  </header>
+  <main>
+    <section class="chat" aria-label="Chat">
+      <div class="scroll" id="scroll" aria-live="polite"></div>
+      <form class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="Ask a question about the data..." aria-label="Message"></textarea>
+        <button type="button" class="btn danger" id="stop" hidden>Stop</button>
+        <button type="submit" class="btn primary" id="send">Send</button>
+      </form>
+    </section>
+    <aside class="panel" id="panel" aria-label="How this answer was built">
+      <div class="ptabs" role="tablist">
+        <h2>How this answer was built</h2>
+        <button class="ptab" role="tab" id="tabAnswer" aria-selected="true">Answer</button>
+        <button class="ptab" role="tab" id="tabOnt" aria-selected="false">Ontology</button>
+        <button class="btn small pclose" id="pclose" type="button">Close</button>
+      </div>
+      <div class="pbody" id="pbody"></div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+  </main>
+</div>
+
+<script>
+(function () {
+'use strict';
+var $ = function (id) { return document.getElementById(id); };
+function newId() { return 's-' + Math.random().toString(36).slice(2) + Date.now().toString(36); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function sleep(ms, signal) {
+  return new Promise(function (res, rej) {
+    var t = setTimeout(res, ms);
+    if (signal) signal.addEventListener('abort', function () { clearTimeout(t); rej(new DOMException('Aborted', 'AbortError')); });
+  });
+}
+
+/* ---------- state ---------- */
+var state = { sessionId: newId(), mode: 'ontology', messages: [], selected: -1, streaming: false, abort: null, suggestions: [], ontology: null, tab: 'answer', ontQuery: '' };
+
+/* ---------- markdown ---------- */
+function inline(s) {
+  s = esc(s);
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  return s;
+}
+function md(text) {
+  var lines = String(text || '').replace(/\r/g, '').split('\n'), out = [], i = 0, para = [];
+  function flush() { if (para.length) { out.push('<p>' + inline(para.join(' ')) + '</p>'); para = []; } }
+  while (i < lines.length) {
+    var l = lines[i], m;
+    if (/^```/.test(l)) {
+      flush(); var code = []; i++;
+      while (i < lines.length && !/^```/.test(lines[i])) code.push(lines[i++]);
+      i++; out.push('<pre><code>' + esc(code.join('\n')) + '</code></pre>'); continue;
+    }
+    if ((m = /^\s*([-*]|\d+\.)\s+(.*)/.exec(l))) {
+      flush(); var ord = /\d/.test(m[1]), items = [];
+      while (i < lines.length && (m = /^\s*([-*]|\d+\.)\s+(.*)/.exec(lines[i]))) { items.push('<li>' + inline(m[2]) + '</li>'); i++; }
+      out.push((ord ? '<ol>' : '<ul>') + items.join('') + (ord ? '</ol>' : '</ul>')); continue;
+    }
+    if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1]) && lines[i + 1].indexOf('-') >= 0) {
+      flush();
+      var cells = function (row) { return row.trim().replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); }); };
+      var head = cells(l), body = []; i += 2;
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) body.push(cells(lines[i++]));
+      var isNum = head.map(function (_, ci) { return body.length > 0 && body.every(function (r) { return /^-?[\d,]+(\.\d+)?%?$/.test(r[ci] || ''); }); });
+      out.push('<div class="tw" tabindex="0" role="region" aria-label="Table"><table><thead><tr>' +
+        head.map(function (c, ci) { return '<th class="' + (isNum[ci] ? 'num' : '') + '">' + inline(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        body.map(function (r) { return '<tr>' + head.map(function (_, ci) { return '<td class="' + (isNum[ci] ? 'num' : '') + '">' + inline(r[ci] || '') + '</td>'; }).join('') + '</tr>'; }).join('') +
+        '</tbody></table></div>');
+      continue;
+    }
+    if (!l.trim()) { flush(); i++; continue; }
+    para.push(l.trim()); i++;
+  }
+  flush();
+  return out.join('');
+}
+
+/* ---------- api ---------- */
+function getJSON(path) {
+  return fetch(path).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+}
+function streamChat(body, signal, onEvent) {
+  return fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal:signal }).then(function (r) {
+    if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
+    var reader = r.body.getReader(), dec = new TextDecoder(), buf = '';
+    function handle(block) {
+      var data = block.split('\n').filter(function (l) { return l.indexOf('data:') === 0; }).map(function (l) { return l.slice(5).replace(/^ /, ''); }).join('\n');
+      if (!data) return;
+      try { onEvent(JSON.parse(data)); } catch (e) { /* ignore malformed event */ }
+    }
+    function pump() {
+      return reader.read().then(function (x) {
+        if (x.done) { buf += dec.decode(); if (buf.trim()) handle(buf); return; }
+        buf += dec.decode(x.value, { stream:true });
+        buf = buf.replace(/\r\n/g, '\n');
+        var idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) { handle(buf.slice(0, idx)); buf = buf.slice(idx + 2); }
+        return pump();
+      });
+    }
+    return pump();
+  });
+}
+
+/* ---------- health ---------- */
+function loadHealth() {
+  var el = $('status'), tx = $('statusText');
+  getJSON('/api/health').then(function (h) {
+    var warns = [];
+    if (!h.ollama) warns.push('Ollama unreachable');
+    if (!h.db) warns.push('Database unavailable');
+    if (warns.length) { el.className = 'status warn'; tx.textContent = warns.join(', ') + ' (' + (h.model || 'no model') + ')'; }
+    else { el.className = 'status ok'; tx.textContent = h.model + ' · ' + h.terms + ' terms'; }
+  }).catch(function () { el.className = 'status warn'; tx.textContent = 'Backend not reachable'; });
+}
+
+/* ---------- chat rendering ---------- */
+var scrollEl = $('scroll');
+function stepLabel(call) {
+  var a = call.args || {}, r = call.result, done = !!r;
+  switch (call.name) {
+    case 'search_terms': return "Searching terms: '" + (a.query || '') + "'";
+    case 'get_term':
+      if (r && r.name) return 'Reading term: ' + r.name;
+      if (r && r.error) return 'Term not found: ' + (a.term_id || '');
+      return 'Reading term: ' + (a.term_id || '');
+    case 'get_schema': return done ? 'Read database schema' : 'Reading database schema';
+    case 'run_sql':
+      if (!done) return 'Running SQL';
+      return r.ok ? 'SQL succeeded' + (r.row_count != null ? ' (' + r.row_count + (r.row_count === 1 ? ' row)' : ' rows)') : '') : 'SQL failed, retrying';
+    default: return 'Calling ' + call.name;
+  }
+}
+function callState(c) {
+  if (!c.result) return 'run';
+  if (c.result.error || c.result.ok === false) return 'bad';
+  return 'ok';
+}
+function stepsHTML(m) {
+  if (!m.order.length) return '';
+  return '<ul class="steps">' + m.order.map(function (id) {
+    var c = m.calls[id], s = callState(c);
+    var icon = s === 'run' ? '' : s === 'ok' ? '✓' : '×';
+    var label = stepLabel(c);
+    if (s === 'bad' && c.name === 'run_sql' && m.done) label = 'SQL failed';
+    return '<li class="' + s + '"><span class="si">' + icon + '</span><span>' + esc(label) + '</span></li>';
+  }).join('') + '</ul>';
+}
+function msgHTML(m, idx) {
+  if (m.role === 'user') return esc(m.text);
+  var h = '<div class="mhead"><span class="tag ' + (m.mode === 'baseline' ? 'base' : '') + '">' + (m.mode === 'baseline' ? 'baseline' : 'ontology') + '</span>';
+  h += '<button type="button" class="btn small details-btn" data-details="' + idx + '">Details</button></div>';
+  h += stepsHTML(m);
+  if (m.text) h += '<div class="md">' + md(m.text) + '</div>';
+  else if (!m.done) h += '<div class="working">' + (m.order.length ? 'Working on it. Local models can take up to a minute.' : 'Thinking. Local models can take up to a minute.') + '</div>';
+  if (m.error) h += '<div class="err" role="alert">' + esc(m.error) + '</div>';
+  if (m.done && !m.text && !m.error) h += '<div class="foot">No answer text was returned.</div>';
+  if (m.done && m.elapsed != null) h += '<div class="foot">' + (m.stopped ? 'Stopped after ' : 'Answered in ') + (m.elapsed / 1000).toFixed(1) + ' s</div>';
+  return h;
+}
+function renderChat() {
+  var nearBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 80;
+  if (!state.messages.length) {
+    scrollEl.innerHTML = '<div class="empty"><h2>Ask the bank database</h2><p>With ontology, the agent looks up business terms first and maps them to the cryptic columns; in baseline it sees only the raw schema.</p><div class="chips" id="chips"></div></div>';
+    var chips = $('chips');
+    state.suggestions.forEach(function (q) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = q;
+      b.addEventListener('click', function () { send(q); }); chips.appendChild(b);
+    });
+    return;
+  }
+  var existing = scrollEl.querySelector('.empty'); if (existing) scrollEl.innerHTML = '';
+  state.messages.forEach(function (m, i) {
+    if (!m.el) {
+      m.el = document.createElement('div');
+      scrollEl.appendChild(m.el);
+    }
+    m.el.className = 'msg ' + m.role + (m.role === 'assistant' ? (i === state.selected ? ' selected' : '') + ' selectable' : '');
+    m.el.dataset.idx = i;
+    m.el.innerHTML = msgHTML(m, i);
+  });
+  if (nearBottom || state.streaming) scrollEl.scrollTop = scrollEl.scrollHeight;
+}
+scrollEl.addEventListener('click', function (e) {
+  var d = e.target.closest('[data-details]');
+  var box = e.target.closest('.msg.assistant');
+  if (!box) return;
+  if (e.target.closest('a,pre,code') && !d) { /* allow text selection */ }
+  select(+box.dataset.idx);
+  if (d) openPanel();
+});
+
+/* ---------- panel ---------- */
+var pbody = $('pbody');
+function kindLabel(k) { return k === 'sql_attribute' ? 'SQL attribute' : k === 'relationship' ? 'Relationship' : 'Term'; }
+function termCard(t) {
+  var h = '<div class="card"><div class="t"><span>' + esc(t.name) + '</span><span class="badge">' + esc(kindLabel(t.kind)) + '</span></div>';
+  if (t.description) h += '<p>' + esc(t.description) + '</p>';
+  if (t.synonyms && t.synonyms.length) h += '<p>Also: ' + t.synonyms.map(esc).join(', ') + '</p>';
+  if (t.columns && t.columns.length) h += '<div class="cols">' + t.columns.map(function (c) { return '<code>' + esc(c) + '</code>'; }).join('') + '</div>';
+  if (t.sql) h += '<pre class="snip mono">' + esc(t.sql) + '</pre>';
+  return h + '</div>';
+}
+function cell(v) {
+  if (v === null || v === undefined) return '<td class="null">null</td>';
+  if (typeof v === 'number') return '<td class="num">' + esc(Number.isInteger(v) ? v.toLocaleString('en-US') : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '</td>';
+  if (typeof v === 'object') return '<td>' + esc(JSON.stringify(v)) + '</td>';
+  return '<td>' + esc(v) + '</td>';
+}
+function answerPanel() {
+  var m = state.messages[state.selected];
+  if (!m || m.role !== 'assistant') return '<p class="note">Send a question and the lookups, SQL and result behind each answer will show up here.</p>';
+  var calls = m.order.map(function (id) { return m.calls[id]; });
+  var h = '<div class="sec"><h3>Terms used</h3>';
+  if (m.mode === 'baseline') h += '<p class="note">Baseline mode: no ontology was consulted. The agent only saw the raw schema.</p>';
+  else {
+    var read = {}, readList = [], searched = {};
+    calls.forEach(function (c) {
+      if (c.name === 'get_term' && c.result && !c.result.error && c.result.id) { if (!read[c.result.id]) { read[c.result.id] = 1; readList.push(c.result); } }
+      if (c.name === 'search_terms' && c.result && c.result.terms) c.result.terms.forEach(function (t) { if (!searched[t.id] || searched[t.id].score < t.score) searched[t.id] = t; });
+    });
+    var only = Object.keys(searched).filter(function (id) { return !read[id]; }).map(function (id) { return searched[id]; }).sort(function (a, b) { return b.score - a.score; });
+    if (!readList.length && !only.length) h += '<p class="note">' + (m.done ? 'No terms were looked up for this answer.' : 'No terms looked up yet.') + '</p>';
+    h += readList.map(termCard).join('');
+    if (only.length) {
+      h += '<div class="meta" style="margin:10px 0 4px">Found in search, not opened</div>';
+      h += only.map(function (t) { return '<div class="quiet"><span>' + esc(t.name) + ' <span>(' + esc(kindLabel(t.kind)) + ')</span></span><span class="sc">' + (typeof t.score === 'number' ? t.score.toFixed(2) : '') + '</span></div>'; }).join('');
+    }
+  }
+  h += '</div><div class="sec"><h3>SQL</h3>';
+  var sqls = calls.map(function (c, i) { return c; }).filter(function (c) { return c.name === 'run_sql'; });
+  if (!sqls.length) h += '<p class="note">' + (m.done ? 'No SQL was run.' : 'No SQL yet.') + '</p>';
+  sqls.forEach(function (c, i) {
+    var s = callState(c), r = c.result;
+    h += '<div class="sqlb"><div class="sqlh"><span>Query ' + (i + 1) + '</span><span class="pill ' + s + '">' + (s === 'run' ? 'running' : s === 'ok' ? 'succeeded' : 'failed') + '</span><button type="button" class="btn small" data-copy="' + c.id.replace(/[^\w-]/g, '') + '">Copy</button></div>';
+    h += '<pre class="mono">' + esc((c.args && c.args.sql) || '') + '</pre>';
+    if (s === 'bad') h += '<div class="err">' + esc((r && (r.error || 'Failed')) || '') + '</div>';
+    h += '</div>';
+  });
+  h += '</div><div class="sec"><h3>Result</h3>';
+  var last = null; sqls.forEach(function (c) { if (c.result && c.result.ok) last = c.result; });
+  if (!last) h += '<p class="note">' + (m.done ? 'No successful query result.' : 'Waiting for a successful query.') + '</p>';
+  else {
+    var cols = last.columns || [], rows = last.rows || [];
+    var numCol = cols.map(function (_, ci) { return rows.length && rows.every(function (r) { return r[ci] === null || typeof r[ci] === 'number'; }) && rows.some(function (r) { return r[ci] !== null; }); });
+    h += '<div class="tw" tabindex="0" role="region" aria-label="Query result"><table><thead><tr>' + cols.map(function (c, ci) { return '<th class="' + (numCol[ci] ? 'num' : '') + '">' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>';
+    h += rows.map(function (r) { return '<tr>' + r.map(function (v, ci) { var td = cell(v); return numCol[ci] ? td.replace('<td class="null"', '<td class="null num"') : td; }).join('') + '</tr>'; }).join('');
+    h += '</tbody></table></div>';
+    var total = last.row_count != null ? last.row_count : rows.length;
+    h += '<div class="meta">' + (last.truncated ? 'Showing ' + rows.length + ' of ' + total + ' rows' : total + (total === 1 ? ' row' : ' rows')) + '</div>';
+  }
+  return h + '</div>';
+}
+function ontologyPanel() {
+  var h = '<input class="search" id="ontSearch" type="search" placeholder="Search terms, synonyms, columns..." aria-label="Search ontology" value="' + esc(state.ontQuery) + '">';
+  h += '<div id="ontList">';
+  if (state.ontology === null) h += '<p class="note">Loading ontology...</p>';
+  else if (state.ontology === false) h += '<p class="note">Could not load the ontology.</p>';
+  return h + '</div>';
+}
+function fillOntList() {
+  var box = $('ontList'); if (!box || !Array.isArray(state.ontology)) return;
+  var q = state.ontQuery.trim().toLowerCase();
+  var list = state.ontology.filter(function (t) {
+    if (!q) return true;
+    return [t.name, t.description, (t.synonyms || []).join(' '), (t.columns || []).join(' '), t.id].join(' ').toLowerCase().indexOf(q) >= 0;
+  });
+  var h = '';
+  [['term', 'Terms'], ['sql_attribute', 'SQL attributes'], ['relationship', 'Relationships']].forEach(function (g) {
+    var items = list.filter(function (t) { return t.kind === g[0]; });
+    if (items.length) h += '<div class="kind-h">' + g[1] + ' (' + items.length + ')</div>' + items.map(termCard).join('');
+  });
+  box.innerHTML = h || '<p class="note">No matches.</p>';
+}
+function renderPanel() {
+  $('tabAnswer').setAttribute('aria-selected', state.tab === 'answer');
+  $('tabOnt').setAttribute('aria-selected', state.tab === 'ontology');
+  if (state.tab === 'answer') { pbody.innerHTML = answerPanel(); }
+  else { pbody.innerHTML = ontologyPanel(); fillOntList(); }
+}
+pbody.addEventListener('input', function (e) { if (e.target.id === 'ontSearch') { state.ontQuery = e.target.value; fillOntList(); } });
+pbody.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-copy]'); if (!b) return;
+  var m = state.messages[state.selected], c = m && m.calls[b.dataset.copy]; if (!c) return;
+  var sql = (c.args && c.args.sql) || '';
+  var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(sql).then(done, function () { b.textContent = 'Copy failed'; });
+  else { var ta = document.createElement('textarea'); ta.value = sql; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (x) { b.textContent = 'Copy failed'; } ta.remove(); }
+});
+function setTab(t) {
+  state.tab = t;
+  if (t === 'ontology' && state.ontology === null) {
+    getJSON('/api/ontology').then(function (d) { state.ontology = d.terms || []; if (state.tab === 'ontology') renderPanel(); }).catch(function () { state.ontology = false; if (state.tab === 'ontology') renderPanel(); });
+  }
+  renderPanel();
+}
+$('tabAnswer').addEventListener('click', function () { setTab('answer'); });
+$('tabOnt').addEventListener('click', function () { setTab('ontology'); });
+function select(i) {
+  if (state.selected === i) return;
+  state.selected = i; state.tab = 'answer'; renderChat(); renderPanel();
+}
+function openPanel() { $('panel').classList.add('open'); $('scrim').classList.add('show'); }
+function closePanel() { $('panel').classList.remove('open'); $('scrim').classList.remove('show'); }
+$('pclose').addEventListener('click', closePanel);
+$('scrim').addEventListener('click', closePanel);
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
+
+/* ---------- sending ---------- */
+var input = $('input');
+function setStreaming(on) {
+  state.streaming = on;
+  input.disabled = on; $('send').hidden = on; $('stop').hidden = !on;
+  if (!on) input.focus();
+}
+function send(text) {
+  text = (text || '').trim();
+  if (!text || state.streaming) return;
+  state.messages.push({ role:'user', text:text });
+  var m = { role:'assistant', mode:state.mode, text:'', order:[], calls:{}, done:false, error:null, elapsed:null };
+  state.messages.push(m);
+  state.selected = state.messages.length - 1; state.tab = 'answer';
+  input.value = ''; autosize();
+  var ac = new AbortController(); state.abort = ac;
+  setStreaming(true);
+  var started = Date.now();
+  var ui = function () { renderChat(); if (state.messages[state.selected] === m && state.tab === 'answer') renderPanel(); };
+  ui();
+  function onEvent(ev) {
+    switch (ev.type) {
+      case 'tool_call': m.calls[ev.id] = { id:ev.id, name:ev.name, args:ev.args || {}, result:null }; m.order.push(ev.id); break;
+      case 'tool_result':
+        if (!m.calls[ev.id]) { m.calls[ev.id] = { id:ev.id, name:ev.name, args:{}, result:null }; m.order.push(ev.id); }
+        m.calls[ev.id].result = ev.result || {}; break;
+      case 'text': m.text += ev.delta || ''; break;
+      case 'error': m.error = ev.message || 'Unknown error'; break;
+      case 'done': m.done = true; m.elapsed = ev.elapsed_ms; break;
+    }
+    ui();
+  }
+  streamChat({ session_id:state.sessionId, message:text, mode:m.mode }, ac.signal, onEvent).catch(function (e) {
+    if (e && e.name === 'AbortError') { m.stopped = true; }
+    else m.error = 'Connection problem: ' + (e && e.message ? e.message : e);
+  }).then(function () {
+    if (!m.done) { m.done = true; if (m.elapsed == null) m.elapsed = Date.now() - started; }
+    m.order.forEach(function (id) { var c = m.calls[id]; if (!c.result) c.result = { error:'Interrupted' }; });
+    state.abort = null; setStreaming(false); ui();
+  });
+}
+function autosize() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }
+input.addEventListener('input', autosize);
+input.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); }
+});
+$('composer').addEventListener('submit', function (e) { e.preventDefault(); send(input.value); });
+$('stop').addEventListener('click', function () { if (state.abort) state.abort.abort(); });
+
+function resetChat() {
+  if (state.abort) state.abort.abort();
+  state.sessionId = newId(); state.messages = []; state.selected = -1; state.tab = 'answer';
+  scrollEl.innerHTML = ''; closePanel(); renderChat(); renderPanel();
+}
+$('newChat').addEventListener('click', resetChat);
+$('seg').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-mode]'); if (!b || b.dataset.mode === state.mode) return;
+  state.mode = b.dataset.mode;
+  Array.prototype.forEach.call($('seg').children, function (x) { x.setAttribute('aria-checked', x === b); });
+  resetChat();
+});
+
+/* ---------- init ---------- */
+renderChat(); renderPanel(); loadHealth();
+getJSON('/api/suggestions').then(function (d) { state.suggestions = d.questions || []; if (!state.messages.length) renderChat(); }).catch(function () {});
+window.__app = state;
+})();
+</script>
+</body>
+</html>
