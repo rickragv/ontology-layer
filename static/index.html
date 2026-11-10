@@ -401,7 +401,7 @@ function loadHealth() {
   var el = $('status'), tx = $('statusText');
   getJSON('/api/health').then(function (h) {
     var warns = [];
-    if (!h.ollama) warns.push('Ollama unreachable');
+    if (!h.ollama) warns.push('Model server unreachable');
     if (!h.db) warns.push('Database unavailable');
     if (warns.length) { el.className = 'status warn'; tx.textContent = warns.join(', ') + ' (' + (h.model || 'no model') + ')'; }
     else { el.className = 'status ok'; tx.textContent = h.model + ' · ' + h.terms + ' hand-written' + (typeof h.generated_terms === 'number' ? ' · ' + h.generated_terms + ' generated' : '') + (h.library && h.library.reachable ? ' · ' + h.library.terms + ' library' : '') + ' terms'; }

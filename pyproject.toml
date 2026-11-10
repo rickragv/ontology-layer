@@ -1,7 +1,7 @@
 [project]
 name = "ontology-layer"
 version = "0.1.0"
-description = "Ontology Chat: an ontology layer helps an LLM agent write correct SQL (Google ADK, Ollama, BIRD financial DB)"
+description = "Ontology layer for text-to-SQL: automatically generate a business ontology from your database and expose it to an LLM agent as tools."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12,<3.13"
