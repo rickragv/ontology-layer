@@ -385,3 +385,7 @@ Read these numbers with care:
 - [NVIDIA Auto Ontology](https://github.com/NVIDIA/auto-ontology) (Apache-2.0) is the project this follows. The generator in `app/generator.py` is this project's own code written after the same flow. The NVIDIA library chat mode uses the real stack. The patch in `docs/auto-ontology-on-ollama/` modifies one of its files.
 - The demo data comes from the [BIRD benchmark](https://bird-bench.github.io/). It is downloaded by `scripts/load.py` and is not included in this repository. Check BIRD's licence before redistributing it.
 - Built with [Google ADK](https://google.github.io/adk-docs/), [LiteLLM](https://github.com/BerriAI/litellm), [FastAPI](https://fastapi.tiangolo.com/) and [Ollama](https://ollama.com/).
+
+## License
+
+[MIT](LICENSE). The patch in `docs/auto-ontology-on-ollama/` contains lines from NVIDIA Auto Ontology and stays under that project's Apache-2.0 licence.
