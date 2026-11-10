@@ -10,7 +10,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import EMBED_MODEL, ONTOLOGY_DB, ONTOLOGY_YAML  # noqa: E402
-from app.tools import embed, vector_to_blob  # noqa: E402
+from app.tools import embed, embed_text, vector_to_blob  # noqa: E402
 
 KINDS = {"term", "sql_attribute", "relationship"}
 
@@ -27,10 +27,6 @@ def load_entries() -> list[dict]:
         e.setdefault("columns", [])
         e.setdefault("sql", None)
     return entries
-
-
-def embed_text(e: dict) -> str:
-    return f"{e['name']}. Synonyms: {', '.join(e['synonyms'])}. {e['description']}"
 
 
 def main() -> None:

@@ -1,0 +1,14 @@
+diff --git a/auto_ontology/utils/llm_invoke.py b/auto_ontology/utils/llm_invoke.py
+index bc1694f2..b8b41078 100644
+--- a/auto_ontology/utils/llm_invoke.py
++++ b/auto_ontology/utils/llm_invoke.py
+@@ -239,6 +239,9 @@ def _build_client(
+             max_tokens=max_tokens,
+             timeout=LLM_INVOKE_TIMEOUT_S,
+             max_retries=0,
++            # Optional OpenAI `reasoning_effort` (e.g. "none" turns Ollama's
++            # thinking off). Unset => not sent, same as upstream.
++            reasoning_effort=os.environ.get("LLM_REASONING_EFFORT") or None,
+         )
+ 
+     from langchain_nvidia_ai_endpoints import ChatNVIDIA

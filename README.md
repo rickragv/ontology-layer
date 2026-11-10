@@ -1,62 +1,88 @@
 ﻿# Ontology Chat
 
-**Same model, same question, two different answers.** Ontology Chat is an end-to-end working solution that shows what an ontology layer does for an AI agent that writes SQL: it tells the model what your columns and codes actually mean, so it stops guessing.
+**Your database → an automatically generated ontology → an ADK agent that uses it as a tool.**
 
-![Demo: the same question answered with and without the ontology](docs/demo.gif)
+Ontology Chat is an end-to-end working solution that shows what an ontology layer does for an AI agent that writes SQL. The ontology tells the model what your columns and codes actually mean, so it stops guessing.
 
-In the recording, the question is *"How many account owners who hold a gold credit card have a problem loan?"*
+![Demo: build the ontology, then ask the same question with and without it](docs/demo.gif)
 
-| Mode | Answer | Why |
+In the recording the question is *"Which district has the highest average salary, and what is it?"* The salary column in this database is named `A11`.
+
+| Chat mode | Ontology comes from | Answer |
 |---|---|---|
-| With ontology | **1** (correct) | Looked up "problem loan" and learned it means `loan.status IN ('B', 'D')` |
-| Baseline | **8** (wrong) | Saw only the raw schema and guessed that status `C` is also a problem |
+| Generated | This app's generator | **Hl.m. Praha, 12,541** (correct) |
+| NVIDIA library | A running [NVIDIA Auto Ontology](https://github.com/NVIDIA/auto-ontology) stack | **Hl.m. Praha, 12,541** (correct) |
+| Baseline | Nothing, raw schema only | "100.0" (wrong column) |
 
-The full stack is included: a chat screen, a streaming API, a [Google ADK](https://google.github.io/adk-docs/) agent on an [Ollama](https://ollama.com/) model, embedding search over the ontology, and read-only SQL execution. No API keys are needed.
+The full stack is included: a chat screen, a streaming API, a [Google ADK](https://google.github.io/adk-docs/) agent on an [Ollama](https://ollama.com/) model, embedding search over the ontology, and read-only SQL execution. No API keys are needed, including no NVIDIA key.
 
 ## Contents
 
+- [The flow in three commands](#the-flow-in-three-commands)
 - [How it works](#how-it-works)
 - [Installation, step by step](#installation-step-by-step)
-- [Using the app](#using-the-app)
-- [Connect your own database](#connect-your-own-database)
+- [Generate the ontology automatically](#generate-the-ontology-automatically)
+- [Use your own database](#use-your-own-database)
+- [Use the NVIDIA Auto Ontology library](#use-the-nvidia-auto-ontology-library)
 - [Settings](#settings)
 - [Project layout](#project-layout)
 - [Troubleshooting](#troubleshooting)
 - [Results and limits](#results-and-limits)
 - [Credits](#credits)
 
+## The flow in three commands
+
+After [installation](#installation-step-by-step):
+
+```
+# 1. point at a SQLite database (skip this to use the demo database)
+$env:DB_PATH = "C:\path\to\mydata.sqlite"
+
+# 2. generate, certify and publish the ontology
+uv run python scripts/generate_ontology.py --use-docs --certify-all --publish
+
+# 3. start the app and ask
+uv run uvicorn app.server:app --port 8765
+```
+
+Open http://127.0.0.1:8765 and choose **Generated** in the chat.
+
 ## How it works
 
 ```mermaid
 flowchart LR
-    UI[Chat screen<br/>static/index.html] -->|POST /api/chat| S[FastAPI server<br/>app/server.py]
-    S --> A[ADK agent on Ollama<br/>app/agents.py]
-    A -->|calls| T[Tools<br/>app/tools.py]
-    T -->|search_terms, get_term| O[(Ontology store<br/>data/ontology.db)]
-    T -->|get_schema, run_sql| D[(Your data<br/>SQLite, read-only)]
-    Y[ontology/financial.yaml] -->|build_ontology.py<br/>embeds each entry| O
+    D[(Your database<br/>SQLite)] --> P[Profile<br/>code only]
+    P --> G[Generate<br/>model drafts entries]
+    G --> C[Certify<br/>person reviews]
+    C --> S[(Ontology store<br/>entries + embeddings)]
+    S -->|search_terms, get_term| A[ADK agent]
+    D -->|get_schema, run_sql| A
+    A --> UI[Chat screen]
 ```
 
-The ontology is a list of plain-language entries of three kinds:
+An ontology entry is one of three kinds:
 
-| Kind | What it captures | Example from the demo |
+| Kind | What it captures | Example |
 |---|---|---|
 | `term` | A business concept mapped to columns and coded values | "Average salary" is `district.A11` |
-| `sql_attribute` | A calculation someone has reviewed | "Loan in good standing" is `loan.status IN ('A', 'C')` |
+| `sql_attribute` | A reusable calculation | "Problem loan" is `loan.status IN ('B', 'D')` |
 | `relationship` | How tables join | Clients reach accounts only through `disp` |
 
-You write the entries in a YAML file. A build script embeds each one and stores it in a small SQLite database, so the ontology lives on disk, not in memory. At question time the agent searches that store, reads the entries it needs, then writes and runs SQL.
+The agent is given four tools. A chat mode is simply a choice of which ontology the first two tools read.
 
-The two modes differ only in the tools the agent is given:
+| Tool | What it does |
+|---|---|
+| `search_terms(query)` | Finds the closest ontology entries by embedding search |
+| `get_term(term_id)` | Reads one entry in full: columns, code meanings, SQL |
+| `get_schema()` | Lists tables and columns, with no meanings |
+| `run_sql(sql)` | Runs one read-only query and returns up to 50 rows |
 
-| Tool | With ontology | Baseline |
-|---|---|---|
-| `search_terms(query)`: find the 5 closest ontology entries | yes | no |
-| `get_term(term_id)`: read one entry in full | yes | no |
-| `get_schema()`: table and column names, no meanings | yes | yes |
-| `run_sql(sql)`: one read-only query, up to 50 rows | yes | yes |
-
-The demo data is the `financial` database from the [BIRD text-to-SQL benchmark](https://bird-bench.github.io/): a real Czech bank with 8 tables and about a million transactions. Its schema is hard to read on purpose. District columns are named `A2` to `A16`, and values are Czech codes such as `POPLATEK MESICNE` (monthly statements).
+| Chat mode | `search_terms` and `get_term` read from |
+|---|---|
+| **Generated** | Entries this app drafted from the database and a person certified |
+| **Hand-written** | A YAML file written by hand, kept as a reference point |
+| **NVIDIA library** | The ontology inside a running NVIDIA Auto Ontology stack, fetched live |
+| **Baseline** | Nothing. The agent only has `get_schema` and `run_sql` |
 
 ## Installation, step by step
 
@@ -69,9 +95,7 @@ Tested on Windows 11. The commands are the same on macOS and Linux.
 | [uv](https://docs.astral.sh/uv/getting-started/installation/) | Installs Python 3.12 and the project's packages | Windows: `winget install astral-sh.uv` |
 | [Ollama](https://ollama.com/download) | Runs the chat and embedding models | Download the installer from ollama.com |
 
-You do not need to install Python yourself. `uv` downloads the right version.
-
-Check both are available:
+You do not need to install Python yourself. Check both tools respond:
 
 ```
 uv --version
@@ -85,7 +109,7 @@ ollama pull qwen3.5:9b
 ollama pull bge-m3
 ```
 
-This downloads about 8 GB. `qwen3.5:9b` is the chat model and `bge-m3` creates the embeddings. An 8 GB GPU is enough; it also runs on CPU, more slowly.
+This downloads about 8 GB. `qwen3.5:9b` is the chat model and `bge-m3` creates the embeddings. An 8 GB GPU is enough.
 
 ### Step 3. Get the code and install packages
 
@@ -95,27 +119,22 @@ cd ontology-layer
 uv sync
 ```
 
-`uv sync` creates a `.venv` folder with Python 3.12 and every dependency.
-
 ### Step 4. Download the demo database
 
 ```
 uv run python scripts/load.py
 ```
 
-This downloads the BIRD dev set (about 350 MB), extracts the `financial` database into `data/`, and splits its 106 questions into `questions/build.json` and `questions/test.json`. It takes a few minutes. Running it again reuses the download.
+This downloads the [BIRD](https://bird-bench.github.io/) dev set (about 350 MB) and extracts its `financial` database into `data/`: a real Czech bank with 8 tables and about a million transactions. District columns are named `A2` to `A16` and values are Czech codes, which makes it a good test.
 
-### Step 5. Build the ontology store
+### Step 5. Build the ontologies
 
 ```
+uv run python scripts/generate_ontology.py --use-docs --certify-all --publish
 uv run python scripts/build_ontology.py
 ```
 
-This reads `ontology/financial.yaml`, embeds the 26 entries with `bge-m3`, and writes `data/ontology.db`. Expect a line like:
-
-```
-wrote data/ontology.db (26 entries, 1024-dim vectors)
-```
+The first command generates the ontology automatically (about 13 minutes on an 8 GB GPU). The second builds the hand-written reference from `ontology/financial.yaml`.
 
 ### Step 6. Start the app
 
@@ -123,31 +142,51 @@ wrote data/ontology.db (26 entries, 1024-dim vectors)
 uv run uvicorn app.server:app --port 8765
 ```
 
-Open **http://127.0.0.1:8765**. The dot next to the title should be green and read `qwen3.5:9b · 26 terms`.
+Open **http://127.0.0.1:8765**. The status line next to the title shows the model and how many entries each ontology has. The first question takes about 30 seconds longer than later ones while Ollama loads the model.
 
-The first question takes about 30 seconds longer than later ones, because Ollama loads the model into memory.
+## Generate the ontology automatically
 
-## Using the app
+The **Build ontology** screen and `scripts/generate_ontology.py` run the same four stages.
 
-1. Click a suggested question, or type your own.
-2. Watch the steps appear: which terms the agent searched, which it read, and each SQL run.
-3. Read the right-hand panel: the terms used, every SQL query, and the result table.
-4. Switch to **Baseline** and ask the same question to compare.
-5. Open the **Ontology** tab to browse and search all entries.
+| Stage | Done by | What happens |
+|---|---|---|
+| 1. Profile | Code, no model | Reads every table: row counts, column types, distinct counts, common values. Flags coded and cryptic columns and finds likely joins by matching values. |
+| 2. Generate | The model | Drafts terms, relationships and calculations from the profile. Every column reference and SQL snippet is checked against the database. |
+| 3. Certify | A person | Approve, edit or reject each draft, with the sample values it came from shown beside it. |
+| 4. Publish | Code | Embeds the certified entries, makes them searchable, and writes them to `ontology/generated.yaml`. |
 
-Questions worth trying:
+Drafts and rejected entries are never searchable. The agent only sees what was certified and published.
 
-- `For loans approved in 1997 that are in good standing, show the number of loans and the average loan amount per region, sorted by average amount descending.`
-- `Top 5 districts by total credited transaction amount in 1998 for accounts with monthly statements. Include each district's average salary.`
-- `How many account owners who hold a gold credit card have a problem loan?`
+### Why the certify stage exists
 
-## Connect your own database
+A model can see that `loan.status` holds A, B, C and D. It cannot know what C means unless something tells it. Measured on the demo database:
 
-The app works on any **SQLite** file. You point it at your file, describe your tables in a YAML ontology, and rebuild the store. No code changes are needed.
+| | Without documentation | With documentation |
+|---|---|---|
+| Drafts produced | 39 | 43 |
+| Flagged "needs review" | 29 | 7 |
+| `district.A11` | "Unknown integer value", flagged | "Average salary" |
+| `loan.status` | "'C' = cancelled (likely)", flagged | "'C' = running contract, OK so far" |
+
+Documentation is optional plain text, one file per table (`<table>.csv`, `.md` or `.txt`) in the folder set by `DOCS_DIR`. Turn it on with `--use-docs` or the switch on the Generate stage.
+
+Entries where the model guessed are flagged with a note saying what to confirm. `--certify-all` and the "Certify all" shortcut skip that review. They are useful for a first look, and answers that depend on a guessed code can then be wrong.
+
+### Command-line options
+
+```
+uv run python scripts/generate_ontology.py                  # profile and draft only
+uv run python scripts/generate_ontology.py --use-docs       # also read DOCS_DIR
+uv run python scripts/generate_ontology.py --use-docs --certify-all --publish
+```
+
+## Use your own database
+
+The app works on any **SQLite** file, with no code changes.
 
 ### Step 1. Have your data in a SQLite file
 
-If your data is already SQLite, skip this. Otherwise export the tables you care about to CSV and load them:
+If it is not already SQLite, export tables to CSV and load them:
 
 ```
 sqlite3 mydata.sqlite
@@ -156,67 +195,16 @@ sqlite3 mydata.sqlite
 .import customers.csv customers
 ```
 
-The app opens the file read-only and refuses anything except `SELECT`, so it cannot change your data.
+The app opens the file read-only and refuses anything except `SELECT`.
 
-### Step 2. Find what needs explaining
-
-Look at real values before writing anything. Coded columns and ambiguous amounts are what a model gets wrong.
-
-```sql
-SELECT sts_cd, COUNT(*) FROM orders GROUP BY sts_cd;
-SELECT MIN(ord_dt), MAX(ord_dt) FROM orders;
-```
-
-Make three lists: columns whose names or values need a definition, calculations people ask for by name, and how the tables join.
-
-### Step 3. Write your ontology
-
-Create `ontology/mydata.yaml`. Each list from step 2 becomes one kind of entry:
-
-```yaml
-entries:
-
-  - id: order_status
-    kind: term
-    name: Order status
-    description: >
-      Stage of an order, stored in orders.sts_cd. 'O' = open, 'S' = shipped,
-      'C' = cancelled, 'R' = returned. Codes are upper-case single letters.
-    synonyms: [status, shipped, cancelled, returned, open orders]
-    columns: [orders.sts_cd]
-    sql: "orders.sts_cd = 'S'  -- shipped"
-
-  - id: net_revenue
-    kind: sql_attribute
-    name: Net revenue
-    description: >
-      Order value after discount. Count only shipped orders. disc_amt can be
-      NULL, treat it as 0.
-    synonyms: [revenue, net sales, sales, turnover]
-    columns: [orders.tot_amt, orders.disc_amt, orders.sts_cd]
-    sql: "SUM(orders.tot_amt - COALESCE(orders.disc_amt, 0))"
-
-  - id: order_to_customer
-    kind: relationship
-    name: Order to customer
-    description: Each order belongs to one customer.
-    synonyms: [customer of order, orders by customer, buyer]
-    columns: [orders.cust_id, customers.cust_id]
-    sql: "JOIN customers ON customers.cust_id = orders.cust_id"
-```
-
-Search looks only at `name`, `synonyms` and `description`, so put the words people actually say in `synonyms`. The `sql` and `columns` fields are what the agent copies once it has found the entry. See `ontology/financial.yaml` for 26 worked examples.
-
-### Step 4. Point the app at your files
-
-Set three environment variables. `DB_NOTES` is one or two sentences telling the agent what the database is.
+### Step 2. Point the app at it
 
 PowerShell:
 
 ```powershell
 $env:DB_PATH = "C:\path\to\mydata.sqlite"
-$env:ONTOLOGY_YAML = "ontology\mydata.yaml"
-$env:ONTOLOGY_DB = "data\mydata-ontology.db"
+$env:GENERATED_DB = "data\mydata-generated.db"
+$env:GENERATED_YAML = "ontology\mydata.generated.yaml"
 $env:DB_NOTES = "Order data for an online shop: tables orders and customers. Amounts are in INR."
 ```
 
@@ -224,34 +212,86 @@ macOS or Linux:
 
 ```bash
 export DB_PATH=/path/to/mydata.sqlite
-export ONTOLOGY_YAML=ontology/mydata.yaml
-export ONTOLOGY_DB=data/mydata-ontology.db
+export GENERATED_DB=data/mydata-generated.db
+export GENERATED_YAML=ontology/mydata.generated.yaml
 export DB_NOTES="Order data for an online shop: tables orders and customers. Amounts are in INR."
 ```
 
-### Step 5. Build and run
+`DB_NOTES` is one or two sentences telling the agent what the database is. If you have column documentation, put one file per table in a folder and set `DOCS_DIR` to it.
+
+### Step 3. Generate, then run
 
 In the same terminal:
 
 ```
-uv run python scripts/build_ontology.py
+uv run python scripts/generate_ontology.py --use-docs --certify-all --publish
 uv run uvicorn app.server:app --port 8765
 ```
 
-### Step 6. Improve it from what you see
+For a careful result, leave out `--certify-all --publish`, open **Build ontology**, and review the drafts there before publishing.
 
-| What you see | What to change |
+### Step 4. Improve it from what you see
+
+| What you see in chat | What to change in Build ontology |
 |---|---|
-| The right entry is missing from the search results | Add the user's wording to `synonyms` |
-| Found the entry, wrote the wrong filter | Spell out exact values and case in `description` and `sql` |
-| Wrong join, or duplicate rows | Add or tighten a `relationship` entry |
-| The same calculation written differently each time | Add a `sql_attribute` so there is one reviewed version |
+| The right entry is missing from the search results | Edit the entry and add the user's wording to its synonyms |
+| Found the entry, wrote the wrong filter | Spell out exact values and case in the description and SQL |
+| Wrong join, or duplicate rows | Fix or add a relationship entry |
+| A code is explained wrongly | Correct it, certify, publish again |
 
-Rerun `build_ontology.py` after every YAML change. The store is rebuilt from scratch each time.
+### Other databases
 
-### Postgres, MySQL and other databases
+Only SQLite is supported today. To use another database, replace two functions in `app/tools.py`: `_financial_conn()`, which opens the connection, and `get_schema()`. The profiler in `app/generator.py` also uses SQLite. This path is not built or tested.
 
-Only SQLite is supported today. To use another database, replace two functions in `app/tools.py`: `_financial_conn()`, which opens the connection, and `get_schema()`, which lists tables and columns. Connect with a read-only database user, because the statement checks in `run_sql` were written for SQLite. This path is not built or tested.
+## Use the NVIDIA Auto Ontology library
+
+The **NVIDIA library** chat mode connects the ADK agent to a running [NVIDIA Auto Ontology](https://github.com/NVIDIA/auto-ontology) stack. The stack generates and stores the ontology. This app's `search_terms` and `get_term` tools fetch it live over the stack's REST API. Nothing is copied into this repository.
+
+### Running the stack on Ollama models
+
+NVIDIA's stack is built for NVIDIA-hosted models. It ran here on Ollama alone with one small patch and configuration changes. The files are in [`docs/auto-ontology-on-ollama/`](docs/auto-ontology-on-ollama/).
+
+| Change | Why |
+|---|---|
+| `01-llm-reasoning-effort.patch` (3 lines) | Lets `LLM_REASONING_EFFORT=none` switch off the model's thinking mode: 1 second per call, down from 20 to 28 |
+| `Modelfile.qwen3.5-ao` | An Ollama alias named `openai/qwen3.5-ao:9b` with a 16k context. The `openai/` prefix makes the stack use its OpenAI client |
+| `init_vdb_1024.py`, run once before the first ingest | The stack creates its vector tables at 2048 dimensions. `bge-m3` produces 1024 |
+| `docker-compose.override.yml` | Binds every port to 127.0.0.1 and moves them to 3200 to 3203 |
+| All five model settings in `.env` set explicitly | Unset ones fall back to NVIDIA endpoints |
+| Clone with `git config core.autocrlf false` on Windows | CRLF line endings break the container entrypoint |
+| Name the SQLite file `main.sqlite` | Works around a table-naming bug that produces `financial.main.loan`, which SQLite rejects |
+
+Model settings used in the stack's `.env`:
+
+```
+DEFAULT_MODELS_ENDPOINT=http://host.docker.internal:11434/v1
+DEFAULT_MODELS_API_KEY=ollama
+DEFAULT_MODELS_MODEL=openai/qwen3.5-ao:9b
+EMBED_ENDPOINT=http://host.docker.internal:11434/v1
+EMBED_API_KEY=ollama
+EMBED_MODEL=bge-m3
+LLM_REASONING_EFFORT=none
+```
+
+Set the `REASONING_*` and `NON_REASONING_*` triplets to the same values as `DEFAULT_MODELS_*`.
+
+### Connecting this app to the stack
+
+Start the app with the stack's address and API token in the environment. The token is the stack's `AUTO_ONTOLOGY_API_TOKEN`. Keep it out of this repository.
+
+```powershell
+$env:AUTO_ONTOLOGY_URL = "http://127.0.0.1:3200"
+$env:AUTO_ONTOLOGY_API_TOKEN = "<the stack's API token>"
+uv run uvicorn app.server:app --port 8765
+```
+
+The status line shows the number of library terms when the stack is reachable. The stack must have ingested the same database that `DB_PATH` points at.
+
+### What the library generated
+
+For the demo database, in about 6 minutes: 8 terms (one per table), 47 column definitions and 8 joins. It produced no SQL calculations, because it derives those from query history and SQLite has none.
+
+From the schema alone it did not decode the cryptic columns either. It described `A11` as a count. With the column documentation loaded into its catalog, the definitions were correct.
 
 ## Settings
 
@@ -259,70 +299,89 @@ All settings are environment variables. Every one has a default, so the demo run
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `CHAT_MODEL` | `qwen3.5:9b` | Ollama chat model for the agent |
+| `CHAT_MODEL` | `qwen3.5:9b` | Ollama chat model |
 | `EMBED_MODEL` | `bge-m3` | Ollama embedding model |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama address |
 | `DB_PATH` | `data/financial.sqlite` | SQLite database the agent queries |
-| `ONTOLOGY_YAML` | `ontology/financial.yaml` | Ontology source file |
-| `ONTOLOGY_DB` | `data/ontology.db` | Built ontology store |
-| `DB_NOTES` | A description of the bank database | What the agent is told about the database |
+| `DB_NOTES` | From the dataset notes file | What the agent is told about the database |
+| `DOCS_DIR` | `data/database_description` | Optional per-table documentation for the generator |
+| `GENERATED_DB` | `data/generated.db` | Generated ontology: profiles, drafts and published entries |
+| `GENERATED_YAML` | `ontology/generated.yaml` | Where publishing writes the certified entries |
+| `ONTOLOGY_YAML` | `ontology/financial.yaml` | Hand-written ontology source |
+| `ONTOLOGY_DB` | `data/ontology.db` | Store built from the hand-written ontology |
+| `DATASET_META` | `<ONTOLOGY_YAML>.meta.yaml` | Dataset notes and starter questions |
+| `AUTO_ONTOLOGY_URL` | `http://127.0.0.1:3200` | NVIDIA Auto Ontology stack address |
+| `AUTO_ONTOLOGY_API_TOKEN` | empty | API token for that stack |
 
-Rebuild the ontology store after changing `EMBED_MODEL`, because vectors from different models cannot be compared.
+Nothing about a particular dataset lives in the code. The demo's description and starter questions are in `ontology/financial.meta.yaml`.
+
+Publish again after changing `EMBED_MODEL`, because vectors from different models cannot be compared.
 
 ## Project layout
 
 ```
 app/
   config.py            paths and settings
+  generator.py         profile, generate, certify, publish
   tools.py             search_terms, get_term, get_schema, run_sql
-  agents.py            the two ADK agents and their instructions
-  server.py            FastAPI app and the streaming chat endpoint
+  library_tools.py     search_terms and get_term backed by an Auto Ontology stack
+  agents.py            the four ADK agents and their instructions
+  server.py            FastAPI app and the streaming endpoints
 ontology/
-  financial.yaml       the ontology for the demo database (26 entries)
+  generated.yaml       certified entries of the generated ontology
+  financial.yaml       hand-written reference ontology (26 entries)
+  financial.meta.yaml  notes and starter questions for the demo database
 scripts/
   load.py              downloads the demo database
-  build_ontology.py    embeds the YAML into the ontology store
+  generate_ontology.py runs the generation flow from the command line
+  build_ontology.py    embeds the hand-written YAML
 static/
-  index.html           the chat screen, one file, no build step
+  index.html           chat and Build ontology screens, one file, no build step
 docs/
   demo.gif
+  auto-ontology-on-ollama/   patch and config for running NVIDIA's stack on Ollama
 ```
 
 The API, for building another client:
 
-- `GET /api/health`, `GET /api/ontology`, `GET /api/suggestions`
-- `POST /api/chat` with `{"session_id", "message", "mode": "ontology" | "baseline"}`. The response is a server-sent event stream of `tool_call`, `tool_result`, `text` and `error` events, ending with `done`.
+- `GET /api/health`, `GET /api/suggestions`, `GET /api/ontology?source=curated|generated|library`
+- `POST /api/chat` with `{"session_id", "message", "mode": "generated" | "ontology" | "library" | "baseline"}`. The response is a server-sent event stream of `tool_call`, `tool_result`, `text` and `error` events, ending with `done`.
+- `GET /api/gen/state`, `POST /api/gen/profile`, `POST /api/gen/generate` (event stream), `PATCH /api/gen/entries/{id}`, `POST /api/gen/entries/bulk`, `POST /api/gen/publish`, `POST /api/gen/reset`
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| Status dot is red, "Ollama unreachable" | Start Ollama (`ollama serve`, or open the Ollama app) |
+| Status shows "Ollama unreachable" | Start Ollama (`ollama serve`, or open the Ollama app) |
 | Status shows "Database unavailable" | Run `scripts/load.py`, or check `DB_PATH` |
-| Status shows `0 terms` | Run `scripts/build_ontology.py` |
-| `address already in use` on start | Another program holds the port. Use `--port 8770` |
+| Generated mode says nothing is published | Run the generate command with `--publish`, or publish from Build ontology |
+| NVIDIA library mode says the stack is not running | Start the stack, and check `AUTO_ONTOLOGY_URL` and `AUTO_ONTOLOGY_API_TOKEN` |
+| `address already in use` on start | Another program holds the port. Stop it, or use `--port 8770` |
 | First answer is very slow | Normal. Ollama is loading the model |
 | Page looks unchanged after an update | Hard refresh with Ctrl+Shift+R |
-| Answers are worse with `qwen2.5:7b` | Expected. It skips tool calls more often. Use `qwen3.5:9b` |
 
 ## Results and limits
 
-Measured with `qwen3.5:9b` on six questions from the build half:
+Measured with `qwen3.5:9b` on the demo database. Each question has a known correct answer.
 
-| | Correct | Time per answer |
+| Ontology | Questions fully correct | Time per answer |
 |---|---|---|
-| With ontology | 6 of 6 | 8 to 31 seconds |
+| Hand-written | 6 of 6 | 8 to 31 seconds |
+| Generated, with documentation, all drafts certified unreviewed | 2 of 4, plus 2 partly right | 9 to 35 seconds |
+| NVIDIA library, with documentation | 4 of 5 | 12 to 61 seconds |
 | Baseline | 0 of 6 | 45 seconds to 5 minutes |
 
 Read these numbers with care:
 
-- **Small sample.** Six questions, all from the half of the question set that was read while writing the ontology. Accuracy on the 53 held-out questions in `questions/test.json` has not been measured.
-- **The model is not deterministic.** The same question can produce a different tool sequence on another run.
-- **Always check the SQL panel.** A plausible answer can come from a wrong join. The SQL is how you catch it.
-- **Sessions are in memory.** Conversation history is lost when the server restarts.
+- **Small samples, and different question sets per row.** They show the pattern, not a benchmark score. Accuracy on the 53 held-out BIRD questions has not been measured.
+- **"Partly right" means a right number from incomplete SQL,** or a right value with the name missing. Some correct answers were lucky in the same way, for example a missing filter that happened not to change the count.
+- **Generated ontologies are weaker than a careful hand-written one.** They explain columns one table at a time and miss cross-table rules. Reviewing and editing the drafts closes much of that gap. `--certify-all` does not.
+- **Documentation can be wrong.** The generator trusts it. One documented entry in the demo came out with the opposite meaning and was not flagged.
+- **The model is not deterministic.** The same question can produce different SQL on another run. Always check the SQL panel.
+- **This is not hardened for production.** There is no login, chat history is kept in memory, and only SQLite is supported.
 
 ## Credits
 
-- The idea follows [NVIDIA Auto Ontology](https://github.com/NVIDIA/auto-ontology), which generates and certifies an ontology over enterprise databases. This project is a small hand-written version of the same concept and does not use its code. The tool names `search_terms` and `get_term` match its MCP tools.
+- [NVIDIA Auto Ontology](https://github.com/NVIDIA/auto-ontology) (Apache-2.0) is the project this follows. The generator in `app/generator.py` is this project's own code written after the same flow. The NVIDIA library chat mode uses the real stack. The patch in `docs/auto-ontology-on-ollama/` modifies one of its files.
 - The demo data comes from the [BIRD benchmark](https://bird-bench.github.io/). It is downloaded by `scripts/load.py` and is not included in this repository. Check BIRD's licence before redistributing it.
 - Built with [Google ADK](https://google.github.io/adk-docs/), [LiteLLM](https://github.com/BerriAI/litellm), [FastAPI](https://fastapi.tiangolo.com/) and [Ollama](https://ollama.com/).

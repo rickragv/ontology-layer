@@ -5,34 +5,31 @@ import re
 import sqlite3
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.agents.run_config import RunConfig
 from google.genai import types
 from pydantic import BaseModel
 
+from app import generator, library_tools
 from app.agents import USER_ID, runners
 from app.config import (
-    CHAT_MODEL, EMBED_MODEL, FINANCIAL_DB, OLLAMA_BASE_URL, ONTOLOGY_DB, STATIC_DIR, USING_DEMO_DB,
+    CHAT_MODEL, EMBED_MODEL, FINANCIAL_DB, OLLAMA_BASE_URL, ONTOLOGY_DB, STATIC_DIR, SUGGESTIONS,
 )
 from app.tools import list_entries
 
 app = FastAPI(title="Ontology layer demo")
 app.mount("/static", StaticFiles(directory=STATIC_DIR, check_dir=False), name="static")
-
-SUGGESTIONS = [
-    "How many accounts with statements issued after each transaction are in East Bohemia?",
-    "Which district has the highest average salary, and what is it?",
-    "How many loans are running contracts where the client is in debt?",
-    "How many female clients own an account with weekly statements?",
-    "What percentage of clients living in the Prague region are women?",
-    "Which district's unemployment rate rose the most from 1995 to 1996, in percentage points?",
-]
+SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+_health_pool = ThreadPoolExecutor(max_workers=2)
 
 _THINK = re.compile(r"<think>.*?(</think>|$)", re.DOTALL)
 
@@ -48,6 +45,8 @@ def index():
 
 @app.get("/api/health")
 def health():
+    # The Auto Ontology check (1.5 s timeout) runs alongside the checks below.
+    library = _health_pool.submit(library_tools.health)
     try:
         ollama = httpx.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=3).status_code == 200
     except httpx.HTTPError:
@@ -62,26 +61,33 @@ def health():
             terms = conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
     except sqlite3.Error:
         terms = 0
-    return {"ollama": ollama, "model": CHAT_MODEL, "embed_model": EMBED_MODEL, "db": db, "terms": terms}
+    try:
+        generated_terms = generator.published_count()
+    except sqlite3.Error:
+        generated_terms = 0
+    return {"ollama": ollama, "model": CHAT_MODEL, "embed_model": EMBED_MODEL, "db": db,
+            "terms": terms, "generated_terms": generated_terms, "library": library.result()}
 
 
 @app.get("/api/ontology")
-def ontology():
+def ontology(source: Literal["curated", "generated", "library"] = "curated"):
+    if source == "library":
+        return library_tools.ontology_entries()  # {"terms": [...]} plus "error" if the stack fails
     try:
-        return {"terms": list_entries()}
+        return {"terms": generator.published_entries() if source == "generated" else list_entries()}
     except sqlite3.Error:
         return {"terms": []}
 
 
 @app.get("/api/suggestions")
 def suggestions():
-    return {"questions": SUGGESTIONS if USING_DEMO_DB else []}
+    return {"questions": SUGGESTIONS}
 
 
 class ChatRequest(BaseModel):
     session_id: str
     message: str
-    mode: Literal["ontology", "baseline"]
+    mode: Literal["ontology", "generated", "baseline", "library"]
 
 
 async def chat_events(req: ChatRequest):
@@ -146,8 +152,84 @@ async def chat(req: ChatRequest):
                 yield _sse({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
         yield _sse({"type": "done", "elapsed_ms": int((time.monotonic() - started) * 1000)})
 
-    return StreamingResponse(
-        stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    return StreamingResponse(stream(), media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+# ---------------------------------------------------------------- auto-generated ontology
+# Profile -> Generate -> Certify -> Publish; the logic is in app/generator.py.
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    if not request.url.path.startswith("/api/gen/"):
+        return await request_validation_exception_handler(request, exc)
+    message = "; ".join(f"{'.'.join(map(str, e['loc'][1:])) or 'body'}: {e['msg']}" for e in exc.errors())
+    return JSONResponse({"error": message}, status_code=422)
+
+
+class GenerateRequest(BaseModel):
+    tables: list[str] | None = None
+    use_docs: bool = False
+
+
+class EntryPatch(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    synonyms: list[str] | None = None
+    columns: list[str] | None = None
+    sql: str | None = None
+    status: Literal["draft", "certified", "rejected"] | None = None
+
+
+class BulkRequest(BaseModel):
+    ids: list[str] | None = None
+    status: Literal["draft", "certified", "rejected"]
+
+
+@app.get("/api/gen/state")
+def gen_state():
+    return generator.state()
+
+
+@app.post("/api/gen/profile")
+def gen_profile():
+    try:
+        generator.profile()
+    except sqlite3.Error as exc:
+        return JSONResponse({"error": f"profiling failed: {exc}"}, status_code=500)
+    return generator.state()
+
+
+@app.post("/api/gen/generate")
+def gen_generate(req: GenerateRequest):
+    # A sync generator: Starlette runs it in a worker thread, so blocking model calls are fine.
+    events = (_sse(event) for event in generator.generate(req.tables, req.use_docs))
+    return StreamingResponse(events, media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+@app.patch("/api/gen/entries/{entry_id}")
+def gen_patch_entry(entry_id: str, body: EntryPatch):
+    try:
+        return generator.update_entry(entry_id, body.model_dump(exclude_unset=True))
+    except KeyError:
+        return JSONResponse({"error": f"no entry with id '{entry_id}'"}, status_code=404)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+
+
+@app.post("/api/gen/entries/bulk")
+def gen_bulk(req: BulkRequest):
+    return {"updated": generator.bulk_status(req.ids, req.status)}
+
+
+@app.post("/api/gen/publish")
+def gen_publish():
+    try:
+        return generator.publish()
+    except (httpx.HTTPError, sqlite3.Error) as exc:
+        return JSONResponse({"error": f"publish failed: {exc}"}, status_code=502)
+
+
+@app.post("/api/gen/reset")
+def gen_reset():
+    generator.reset()
+    return {"ok": True}

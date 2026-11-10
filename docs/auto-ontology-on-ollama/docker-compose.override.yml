@@ -1,0 +1,70 @@
+# Compose override used to run NVIDIA Auto Ontology with Ollama models.
+# Binds every published port to 127.0.0.1 and moves them to 3200-3203, 5532 and 5150.
+# The MCP server shares the frontend's network namespace so both see the same issuer URL.
+
+services:
+  postgres:
+    container_name: auto-ontology-postgres
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+
+  pgadmin:
+    container_name: auto-ontology-pgadmin
+    ports: !override
+      - "127.0.0.1:5150:80"
+
+  auto-ontology:
+    ports: !override
+      - "127.0.0.1:3201:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./_data:/data:ro
+
+  ingestion-service:
+    ports: !override
+      - "127.0.0.1:3202:3002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./_data:/data:ro
+
+  auto-ontology-migrate:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  auto-ontology-frontend:
+    ports: !override
+      - "127.0.0.1:3200:3200"
+      - "127.0.0.1:3203:3203"
+    environment:
+      PORT: "3200"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3200/',(r)=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  auto-ontology-mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    image: auto-ontology-mcp:latest
+    container_name: auto-ontology-mcp
+    restart: unless-stopped
+    network_mode: "service:auto-ontology-frontend"
+    environment:
+      AUTO_ONTOLOGY_API_URL: http://localhost:3200
+      AUTO_ONTOLOGY_MCP_PUBLIC_URL: http://localhost:3203
+      AUTO_ONTOLOGY_MCP_PORT: "3203"
+      AUTO_ONTOLOGY_MCP_HOST: 0.0.0.0
+    depends_on:
+      auto-ontology-frontend:
+        condition: service_started

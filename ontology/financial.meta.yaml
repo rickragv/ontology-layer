@@ -1,0 +1,20 @@
+# Dataset notes for the demo database (data/financial.sqlite). Loaded next to the
+# ontology YAML of the same name. For your own data, write <your-ontology>.meta.yaml
+# or set DB_NOTES.
+
+# One or two sentences telling the agent what database it is on.
+notes: >
+  The database is the BIRD `financial` database of a Czech bank: tables account,
+  card, client, disp, district, loan, order, trans. Many stored values are Czech
+  codes and district columns are named A2..A16. Quote the table "order" as `order`.
+  Money amounts are in Czech koruna: write them as plain numbers or with "CZK",
+  never with any other currency symbol.
+
+# Starter questions shown on the empty chat screen.
+suggestions:
+  - How many accounts with statements issued after each transaction are in East Bohemia?
+  - Which district has the highest average salary, and what is it?
+  - How many loans are running contracts where the client is in debt?
+  - How many female clients own an account with weekly statements?
+  - What percentage of clients living in the Prague region are women?
+  - Which district's unemployment rate rose the most from 1995 to 1996, in percentage points?

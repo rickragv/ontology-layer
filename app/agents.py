@@ -1,4 +1,6 @@
-"""Two Google ADK agents on an Ollama model: `ontology` and `baseline`."""
+"""Google ADK agents on an Ollama model: `ontology` (curated store), `generated` (published
+entries of the auto-generated store), `baseline` (schema only) and `library` (the ontology
+of a running NVIDIA Auto Ontology stack, read over REST by app/library_tools.py)."""
 
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm
@@ -6,6 +8,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
+from app import generator, library_tools
 from app.config import CHAT_MODEL, DB_NOTES, OLLAMA_BASE_URL
 from app.tools import get_schema, get_term, run_sql, search_terms
 
@@ -30,11 +33,44 @@ the database. A curated business ontology tells you exactly which columns,
 codes, joins and reviewed SQL expressions correspond to business terms.
 
 Workflow - follow it for every question:
-1. Call search_terms for each business concept in the question (for example
-   "average salary", "weekly statement", "owner of account", "loan status").
+1. Call search_terms for each business concept in the question (every
+   measure, category, status, kind of entity or link between entities it mentions).
 2. Call get_term on every relevant result to read its columns, code values and
    SQL snippet. Use those exact columns, codes, join paths and filters (copy
    string values exactly, including upper/lower case) in your query.
+3. Call get_schema only if you still need a table or column name.
+4. Write the SQL and call run_sql.
+"""
+    + COMMON_RULES
+)
+
+GENERATED_INSTRUCTION = ONTOLOGY_INSTRUCTION.replace(
+    "A curated business ontology",
+    "A business ontology (drafted from the database, then certified by a reviewer)",
+)
+
+LIBRARY_INSTRUCTION = (
+    """You are a data analyst. You answer questions by querying
+the database. A business ontology that the NVIDIA Auto Ontology library generated
+from the database tells you what the tables, columns and coded values mean. In
+this ontology each term is one table; the meanings are in the term's
+column_details (for every column: business name, description with what each
+coded value stands for, sample values) and its relationships give the join
+conditions to other tables. It has few or no ready-made SQL snippets.
+
+Workflow - follow it for every question:
+1. Call search_terms for each business concept in the question (a measure, an
+   attribute, a category or status, how two things are linked). Each result is
+   a table; matched_columns shows which of its columns matched.
+2. Call get_term on every relevant result and read its column_details and
+   relationships. Use those exact columns and join conditions, and copy coded
+   values exactly as the descriptions give them (including upper/lower case).
+   If a phrase in the question has no column of its own (for example a status
+   or category described in words), go through every coded value of that
+   column, keep each one whose description fits the phrase (often more than
+   one) and filter on all of them.
+   Read the term of every table your query will use, including tables you
+   only join through: their columns may hold a condition the question implies.
 3. Call get_schema only if you still need a table or column name.
 4. Write the SQL and call run_sql.
 """
@@ -77,6 +113,22 @@ def build_agent(mode: str) -> Agent:
             tools=[search_terms, get_term, get_schema, run_sql],
             generate_content_config=gen_config,
         )
+    if mode == "generated":
+        return Agent(
+            name="generated_analyst",
+            model=_model(),
+            instruction=GENERATED_INSTRUCTION,
+            tools=[generator.search_terms, generator.get_term, get_schema, run_sql],
+            generate_content_config=gen_config,
+        )
+    if mode == "library":
+        return Agent(
+            name="library_analyst",
+            model=_model(),
+            instruction=LIBRARY_INSTRUCTION,
+            tools=[library_tools.search_terms, library_tools.get_term, get_schema, run_sql],
+            generate_content_config=gen_config,
+        )
     if mode == "baseline":
         return Agent(
             name="baseline_analyst",
@@ -96,5 +148,5 @@ runners = {
         session_service=session_service,
         auto_create_session=True,
     )
-    for mode in ("ontology", "baseline")
+    for mode in ("ontology", "generated", "baseline", "library")
 }

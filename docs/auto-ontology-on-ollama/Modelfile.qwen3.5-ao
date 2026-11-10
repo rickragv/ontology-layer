@@ -1,0 +1,5 @@
+FROM qwen3.5:9b
+# 16k context: the app sends schema-heavy prompts; Ollama default is 4096 and truncates silently.
+PARAMETER num_ctx 16384
+# The app asks for temperature=0.0; ChatOpenAI omits temperature, so set it here.
+PARAMETER temperature 0

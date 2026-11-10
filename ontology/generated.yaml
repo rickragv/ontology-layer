@@ -1,0 +1,333 @@
+# Generated ontology for financial.sqlite: the certified entries of the auto-ontology
+# flow (Profile -> Generate -> Certify -> Publish, app/generator.py). Written by publish;
+# do not edit by hand. Same format as financial.yaml.
+
+entries:
+  - id: account_issuance_frequency
+    kind: term
+    name: Account Issuance Frequency
+    description: 'The frequency at which the account is issued or updated. Values: ''POPLATEK MESICNE''
+      = monthly issuance; ''POPLATEK TYDNE'' = weekly issuance; ''POPLATEK PO OBRATU'' = issuance after
+      transaction.'
+    synonyms: [account frequency, issuance schedule, update frequency, payment cycle type]
+    columns: [account.frequency]
+    sql: SELECT account_id, frequency FROM account WHERE frequency IN ('POPLATEK MESICNE', 'POPLATEK TYDNE',
+      'POPLATEK PO OBRATU')
+  - id: account_is_monthly_issuance
+    kind: sql_attribute
+    name: Is Monthly Issuance
+    description: A boolean flag indicating if the account follows a monthly issuance schedule.
+    synonyms: [is monthly, monthly cycle]
+    columns: [account.frequency]
+    sql: SELECT CASE WHEN frequency = 'POPLATEK MESICNE' THEN 1 ELSE 0 END AS is_monthly FROM account
+  - id: account_is_weekly_issuance
+    kind: sql_attribute
+    name: Is Weekly Issuance
+    description: A boolean flag indicating if the account follows a weekly issuance schedule.
+    synonyms: [is weekly, weekly cycle]
+    columns: [account.frequency]
+    sql: SELECT CASE WHEN frequency = 'POPLATEK TYDNE' THEN 1 ELSE 0 END AS is_weekly FROM account
+  - id: account_district_location_link
+    kind: relationship
+    name: District Location Link
+    description: Links each account to its specific branch location (district) where the account was opened
+      or managed.
+    synonyms: [branch district, location hierarchy]
+    columns: [account.district_id, district.district_id]
+    sql: account JOIN district ON district.district_id = account.district_id
+  - id: card_credit_card_tier
+    kind: term
+    name: Credit Card Tier
+    description: 'The class or tier of the credit card. Values: ''junior'' = junior class of credit card;
+      ''classic'' = standard class of credit card; ''gold'' = high-level credit card.'
+    synonyms: [card type, card class, tier level, membership grade]
+    columns: [card.type]
+    sql: null
+  - id: card_is_premium_card
+    kind: sql_attribute
+    name: Is Premium Card
+    description: A boolean flag indicating if the card is a high-level tier.
+    synonyms: [is gold, premium indicator]
+    columns: [card.type]
+    sql: null
+  - id: card_dispensation_link
+    kind: relationship
+    name: Dispensation Link
+    description: Links each credit card to its specific dispensation (disp) record, likely representing
+      the issuing branch or department.
+    synonyms: [issuing unit link, branch association]
+    columns: [card.disp_id, disp.disp_id]
+    sql: card JOIN disp ON disp.disp_id = card.disp_id
+  - id: client_gender
+    kind: term
+    name: Client Gender
+    description: The biological sex of the client, coded as 'M' for male and 'F' for female.
+    synonyms: [client gender, customer sex, gender code, male/female flag]
+    columns: [client.gender]
+    sql: SELECT gender FROM client WHERE gender IN ('M', 'F')
+  - id: client_district_location
+    kind: relationship
+    name: District Location
+    description: Links the client to their specific branch district, identifying where the client is located
+      or served.
+    synonyms: [client district link, branch location join]
+    columns: [client.district_id, district.district_id]
+    sql: client JOIN district ON district.district_id = client.district_id
+  - id: disp_disposition_role
+    kind: term
+    name: Disposition Role
+    description: 'The role of the client in the disposition relationship. Values: ''OWNER'' = account
+      owner; ''DISPONENT'' = user authorized to issue orders or apply for loans.'
+    synonyms: [client role, account holder type, user status, disposition category]
+    columns: [disp.type]
+    sql: disp.type IN ('OWNER', 'DISPONENT')
+  - id: disp_is_authorized_user
+    kind: sql_attribute
+    name: Is Authorized User
+    description: A boolean flag indicating if the client is an authorized user (DISPONENT) rather than
+      just the owner.
+    synonyms: [is dispenser, has ordering rights]
+    columns: [disp.type]
+    sql: disp.type = 'DISPONENT'
+  - id: disp_client_link
+    kind: relationship
+    name: Client Link
+    description: Links the disposition record to the specific client who owns or uses the account.
+    synonyms: [links to client table]
+    columns: [disp.client_id, client.client_id]
+    sql: disp JOIN client ON client.client_id = disp.client_id
+  - id: disp_account_link
+    kind: relationship
+    name: Account Link
+    description: Links the disposition record to the specific bank account associated with this role.
+    synonyms: [links to account table]
+    columns: [disp.account_id, account.account_id]
+    sql: disp JOIN account ON account.account_id = disp.account_id
+  - id: disp_client_account_relationship
+    kind: relationship
+    name: Client-Account Relationship
+    description: Establishes the relationship between a client and an account through the disposition
+      record, defining who owns it and who can use it.
+    synonyms: [client account mapping]
+    columns: [client.client_id, disp.client_id, disp.account_id, account.account_id]
+    sql: client JOIN disp ON disp.client_id = client.client_id JOIN account ON account.account_id = disp.account_id
+  - id: district_name
+    kind: term
+    name: District Name
+    description: The name of the district (e.g., 'Benesov', 'Brno - mesto').
+    synonyms: [district name, locality name, area name]
+    columns: [district.A2]
+    sql: SELECT A2 FROM district WHERE A2 = 'Brno - mesto'
+  - id: district_region
+    kind: term
+    name: Region
+    description: 'The region containing the district. Values: ''south Moravia'', ''central Bohemia'',
+      ''east Bohemia'', ''north Moravia'', ''north Bohemia'', ''west Bohemia'', ''south Bohemia'', ''Prague''.'
+    synonyms: [region name, administrative region, macro-region]
+    columns: [district.A3]
+    sql: SELECT A3 FROM district WHERE A3 = 'Prague'
+  - id: district_population_count
+    kind: term
+    name: Population Count
+    description: The total number of inhabitants in the district.
+    synonyms: [population, number of people, inhabitants count]
+    columns: [district.A4]
+    sql: SELECT A4 FROM district WHERE A4 > 1000000
+  - id: district_small_municipalities_count
+    kind: term
+    name: Small Municipalities Count
+    description: The number of municipalities in the district with fewer than 499 inhabitants.
+    synonyms: [count of small towns, small municipality count]
+    columns: [district.A5]
+    sql: SELECT A5 FROM district WHERE A5 = 0
+  - id: district_medium_municipalities_count
+    kind: term
+    name: Medium Municipalities Count
+    description: The number of municipalities in the district with between 500 and 1999 inhabitants.
+    synonyms: [count of medium towns, medium municipality count]
+    columns: [district.A6]
+    sql: SELECT A6 FROM district WHERE A6 = 26
+  - id: district_large_municipalities_count
+    kind: term
+    name: Large Municipalities Count
+    description: The number of municipalities in the district with between 2000 and 9999 inhabitants.
+    synonyms: [count of large towns, large municipality count]
+    columns: [district.A7]
+    sql: SELECT A7 FROM district WHERE A7 = 4
+  - id: district_city_municipalities_count
+    kind: term
+    name: City Municipalities Count
+    description: The number of municipalities in the district with more than 10,000 inhabitants.
+    synonyms: [count of cities, city municipality count]
+    columns: [district.A8]
+    sql: SELECT A8 FROM district WHERE A8 = 1
+  - id: district_unknown_metric_a9
+    kind: term
+    name: Unknown Metric A9
+    description: An integer metric ranging from 1 to 11. The specific meaning is unknown and requires
+      confirmation.
+    synonyms: [metric A9, unknown count]
+    columns: [district.A9]
+    sql: null
+  - id: district_urban_population_ratio
+    kind: term
+    name: Urban Population Ratio
+    description: The ratio (percentage) of urban inhabitants in the district.
+    synonyms: [urbanization rate, city population share]
+    columns: [district.A10]
+    sql: SELECT A10 FROM district WHERE A10 = 100.0
+  - id: district_average_salary
+    kind: term
+    name: Average Salary
+    description: The average salary in the district, stored as an integer.
+    synonyms: [avg wage, mean income]
+    columns: [district.A11]
+    sql: SELECT A11 FROM district WHERE A11 > 8000
+  - id: district_unemployment_rate_1995
+    kind: term
+    name: Unemployment Rate 1995
+    description: The unemployment rate in the district for the year 1995.
+    synonyms: [jobless rate 1995, unemployment '95]
+    columns: [district.A12]
+    sql: SELECT A12 FROM district WHERE A12 > 3.0
+  - id: district_unemployment_rate_1996
+    kind: term
+    name: Unemployment Rate 1996
+    description: The unemployment rate in the district for the year 1996.
+    synonyms: [jobless rate 1996, unemployment '96]
+    columns: [district.A13]
+    sql: SELECT A13 FROM district WHERE A13 > 2.0
+  - id: district_entrepreneurs_density
+    kind: term
+    name: Entrepreneurs Density
+    description: The number of entrepreneurs per 1000 inhabitants in the district.
+    synonyms: [business density, entrepreneur rate]
+    columns: [district.A14]
+    sql: SELECT A14 FROM district WHERE A14 = 100
+  - id: district_crimes_committed_1995
+    kind: term
+    name: Crimes Committed 1995
+    description: The number of committed crimes in the district during 1995.
+    synonyms: [crime count '95, criminal incidents 1995]
+    columns: [district.A15]
+    sql: SELECT A15 FROM district WHERE A15 > 2000
+  - id: district_crimes_committed_1996
+    kind: term
+    name: Crimes Committed 1996
+    description: The number of committed crimes in the district during 1996.
+    synonyms: [crime count '96, criminal incidents 1996]
+    columns: [district.A16]
+    sql: SELECT A16 FROM district WHERE A16 > 4000
+  - id: loan_repayment_status
+    kind: term
+    name: Repayment Status
+    description: 'The current state of the loan contract repayment. Values: ''A'' = contract finished,
+      no problems; ''B'' = contract finished, loan not paid; ''C'' = running contract, OK so far; ''D''
+      = running contract, client in debt.'
+    synonyms: [loan status, repayment state, contract condition, payment standing, loan outcome]
+    columns: [loan.status]
+    sql: SELECT loan.status FROM loan WHERE loan.status IN ('A', 'B', 'C', 'D')
+  - id: loan_fully_paid_loans
+    kind: sql_attribute
+    name: Fully Paid Loans
+    description: Count of loans where the contract has finished without issues.
+    synonyms: [completed good loans, successful contracts]
+    columns: [loan.status]
+    sql: SELECT COUNT(*) FROM loan WHERE status = 'A'
+  - id: loan_problematic_loans
+    kind: sql_attribute
+    name: Problematic Loans
+    description: Count of loans that are either finished unpaid or currently in debt.
+    synonyms: [defaulted loans, troubled accounts]
+    columns: [loan.status]
+    sql: SELECT COUNT(*) FROM loan WHERE status IN ('B', 'D')
+  - id: loan_account_association
+    kind: relationship
+    name: Account Association
+    description: Links each loan record to its specific bank account, allowing analysis of lending activity
+      per account.
+    synonyms: [loan to account link, account ownership]
+    columns: [loan.account_id, account.account_id]
+    sql: loan JOIN account ON account.account_id = loan.account_id
+  - id: order_recipient_bank_code
+    kind: term
+    name: Recipient Bank Code
+    description: 'Two-letter code identifying the bank account of the recipient. Values: ''QR'', ''YZ'',
+      ''AB'', ''WX'', ''ST'', ''KL'', ''UV'', ''IJ'', ''GH'', ''OP'' (all meanings unknown).'
+    synonyms: [recipient bank, payee bank code, destination bank, bank of recipient]
+    columns: [order.bank_to]
+    sql: SELECT DISTINCT o.bank_to FROM "order" o
+  - id: order_payment_purpose_code
+    kind: term
+    name: Payment Purpose Code
+    description: 'Characterization of the payment purpose. Values: ''SIPO'' = household payment; ''UVER''
+      = loan payment; ''LEASING'' = leasing; ''POJISTNE'' = insurance payment; '''' = meaning unknown.'
+    synonyms: [payment type, payment category, transaction purpose, payment reason]
+    columns: [order.k_symbol]
+    sql: SELECT DISTINCT o.k_symbol FROM "order" o WHERE o.k_symbol != ''
+  - id: order_links_to_account_details
+    kind: relationship
+    name: Links to Account Details
+    description: Connects each order to the specific account record (likely the payer's or sender's account)
+      via the account_id.
+    synonyms: [order to account link, payer account association]
+    columns: [order.account_id, account.account_id]
+    sql: '"order" JOIN account ON account.account_id = "order".account_id'
+  - id: trans_transaction_direction
+    kind: term
+    name: Transaction Direction
+    description: 'Indicates the direction of funds flow: ''PRIJEM'' is a credit (deposit), ''VYDAJ'' is
+      a withdrawal, and ''VYBER'' is an unspecified transaction type. Unit: USD.'
+    synonyms: [transaction type, fund flow direction, credit or debit flag, money movement kind]
+    columns: [trans.type]
+    sql: SELECT trans.type FROM trans WHERE trans.type IN ('PRIJEM', 'VYDAJ')
+  - id: trans_transaction_mode
+    kind: term
+    name: Transaction Mode
+    description: 'Describes the specific mechanism of the transaction: ''VYBER KARTOU'' (credit card withdrawal),
+      ''VKLAD'' (cash deposit), ''PREVOD Z UCTU'' (collection from another bank), ''VYBER'' (cash withdrawal),
+      ''PREVOD NA UCET'' (remittance to another bank). 17.34% of records have no mode specified.'
+    synonyms: [transaction method, payment mode, operation type, fund transfer mechanism]
+    columns: [trans.operation]
+    sql: SELECT trans.operation FROM trans WHERE trans.operation IS NOT NULL
+  - id: trans_transaction_characterization
+    kind: term
+    name: Transaction Characterization
+    description: 'Categorizes the nature of the transaction: ''UROK'' (interest credited), ''SLUZBY''
+      (payment for statement), ''SIPO'' (household), ''DUCHOD'' (old-age pension), ''UVER'' (loan payment),
+      ''SANKC. UROK'' (sanction interest if negative balance). 45.59% of records have no characterization.'
+    synonyms: [transaction category, fund purpose code, payment reason, account activity type]
+    columns: [trans.k_symbol]
+    sql: SELECT trans.k_symbol FROM trans WHERE trans.k_symbol IS NOT NULL AND trans.k_symbol != ' '
+  - id: trans_partner_bank_code
+    kind: term
+    name: Partner Bank Code
+    description: The two-letter code identifying the partner bank involved in the transaction (e.g., 'QR',
+      'AB'). 74.09% of records have no partner bank specified.
+    synonyms: [partner bank, external bank code, counterparty bank]
+    columns: [trans.bank]
+    sql: SELECT trans.bank FROM trans WHERE trans.bank IS NOT NULL
+  - id: trans_is_external_transfer
+    kind: sql_attribute
+    name: Is External Transfer
+    description: A boolean flag indicating if the transaction involves moving money to or from another
+      bank (based on 'PREVOD NA UCET' or 'PREVOD Z UCTU' operations).
+    synonyms: [external transfer flag, interbank transfer indicator]
+    columns: [trans.type, trans.operation, trans.k_symbol]
+    sql: CASE WHEN trans.operation IN ('PREVOD NA UCET', 'PREVOD Z UCTU') THEN 1 ELSE 0 END
+  - id: trans_has_negative_balance_sanction
+    kind: sql_attribute
+    name: Has Negative Balance Sanction
+    description: A boolean flag indicating if the transaction is a sanction interest applied due to a
+      negative balance.
+    synonyms: [sanction interest flag, negative balance penalty indicator]
+    columns: [trans.k_symbol, trans.balance]
+    sql: CASE WHEN trans.k_symbol = 'SANKC. UROK' THEN 1 ELSE 0 END
+  - id: trans_account_linkage
+    kind: relationship
+    name: Account Linkage
+    description: Links each transaction record to the specific bank account (trans.account_id) where the
+      funds were held or moved.
+    synonyms: [transaction to account mapping, account reference]
+    columns: [trans.account_id, account.account_id]
+    sql: trans JOIN account ON account.account_id = trans.account_id

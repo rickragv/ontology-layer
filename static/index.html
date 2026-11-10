@@ -13,6 +13,7 @@
   --bg:#f5f6f8; --surface:#ffffff; --fg:#151a22; --muted:#5b6472; --line:#dde1e8;
   --accent:#2c56c9; --accent-soft:#e8eefc; --ok:#1b7f55; --ok-soft:#e3f4ec; --bad:#b3372f; --bad-soft:#fbe9e7;
   --on-accent:#ffffff; --scrim:rgba(21,26,34,.4); --shadow:0 8px 28px rgba(21,26,34,.14);
+  --warn:#8a5a00; --warn-soft:#fbf0d9;
   --radius:8px;
   --font-head:"Space Grotesk","Inter",system-ui,sans-serif;
   --font-text:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -23,9 +24,11 @@
     --bg:#11141a; --surface:#191d25; --fg:#e8ebf0; --muted:#9aa3b2; --line:#2b313c;
     --accent:#8aa8ff; --accent-soft:#1f2a47; --ok:#5fcf9c; --ok-soft:#16302a; --bad:#ff8f85; --bad-soft:#3a1f1d;
     --on-accent:#11141a; --scrim:rgba(0,0,0,.6); --shadow:0 8px 28px rgba(0,0,0,.5);
+    --warn:#f0c36d; --warn-soft:#3a2f14;
   }
 }
 * { box-sizing:border-box; }
+[hidden] { display:none !important; }
 html,body { height:100%; margin:0; }
 body { background:var(--bg); color:var(--fg); font:14px/1.5 var(--font-text); overflow:hidden; }
 button,textarea,input { font:inherit; color:inherit; }
@@ -53,6 +56,9 @@ header { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; paddin
 .btn.danger { color:var(--bad); }
 .btn:disabled { opacity:.5; cursor:not-allowed; }
 .btn.small { padding:2px 8px; font-size:12px; }
+a.btn { text-decoration:none; color:inherit; display:inline-block; }
+.seg a { padding:5px 12px; border-radius:6px; color:var(--muted); font-weight:500; font-size:13px; text-decoration:none; }
+.seg a[aria-current="page"] { background:var(--surface); color:var(--accent); box-shadow:0 0 0 1px var(--line); }
 
 /* main */
 main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:16px; padding:16px; }
@@ -114,6 +120,11 @@ main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,3fr) m
 .cols { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
 .cols code { font-size:11.5px; background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 5px; }
 .snip { margin:6px 0 0; padding:6px 8px; background:var(--bg); border-radius:6px; font-size:12px; overflow-x:auto; white-space:pre; }
+.cd { margin-top:6px; font-size:12.5px; }
+.cd > summary { cursor:pointer; color:var(--muted); }
+.cd ul { margin:4px 0 0; padding-left:18px; color:var(--muted); }
+.cd li { overflow-wrap:anywhere; }
+.cd code { font-size:11.5px; color:var(--fg); }
 .quiet { font-size:12.5px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px dashed var(--line); }
 .quiet .sc { font-family:var(--font-mono); font-size:11.5px; }
 .sqlb { border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px; overflow:hidden; }
@@ -138,7 +149,101 @@ td.null { color:var(--muted); }
 .kind-h { font:600 12px var(--font-head); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:6px 0; }
 .scrim { display:none; }
 
+/* build ontology view */
+.build { flex:1; min-height:0; overflow-y:auto; padding:16px; }
+.bwrap { max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:14px; min-width:0; }
+.intro { margin:0; color:var(--muted); max-width:760px; }
+.intro strong { color:var(--fg); font-weight:600; }
+.stepper { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.step { width:100%; height:100%; text-align:left; display:flex; gap:10px; align-items:flex-start; border:1px solid var(--line); background:var(--surface); border-radius:var(--radius); padding:10px; }
+.step:hover:not(:disabled) { background:var(--accent-soft); }
+.step[aria-current="step"] { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.step:disabled { opacity:.55; cursor:not-allowed; }
+.stn { width:22px; height:22px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font:600 12px var(--font-mono); flex:none; color:var(--muted); }
+.step.done .stn { background:var(--ok-soft); color:var(--ok); border-color:transparent; }
+.step[aria-current="step"] .stn { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+.sl { font-weight:600; font-size:13px; overflow-wrap:anywhere; }
+.ss { font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
+.stage { background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+.stage h2 { font:600 18px var(--font-head); margin:0; }
+.stage h3 { font:600 12px var(--font-head); text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 6px; }
+.lead { margin:0; color:var(--muted); max-width:760px; }
+.row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.callout { border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--bg); border-radius:6px; padding:8px 12px; font-size:13px; overflow-wrap:anywhere; }
+.callout code { font-size:12px; }
+.tlist { display:flex; flex-direction:column; gap:6px; }
+details.tbl { border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); }
+details.tbl > summary { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:8px 10px; cursor:pointer; }
+.tn { font:500 13px var(--font-mono); overflow-wrap:anywhere; }
+.tbody { padding:0 10px 10px; display:flex; flex-direction:column; gap:6px; }
+.colr { border:1px solid var(--line); border-radius:6px; padding:6px 8px; font-size:12.5px; min-width:0; }
+.colr.attn { border-left:3px solid var(--warn); background:var(--warn-soft); }
+.colh { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; }
+.colh code { font-size:12.5px; font-weight:500; overflow-wrap:anywhere; }
+.ty { color:var(--muted); font-family:var(--font-mono); font-size:11.5px; }
+.colm { color:var(--muted); margin-top:2px; overflow-wrap:anywhere; }
+.fchip { font:500 11px var(--font-text); padding:0 6px; border-radius:999px; border:1px solid var(--line); color:var(--muted); background:var(--bg); }
+.fchip.hot { background:var(--warn-soft); color:var(--warn); border-color:var(--warn); }
+.samp { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.sv { font:11.5px var(--font-mono); background:var(--bg); border:1px solid var(--line); border-radius:4px; padding:0 5px; overflow-wrap:anywhere; max-width:100%; }
+.sv small { color:var(--muted); margin-left:4px; font-size:10.5px; }
+.fks { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
+.fks li { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; font-size:12.5px; padding:3px 0; border-bottom:1px dashed var(--line); }
+.fks code { font-size:12px; overflow-wrap:anywhere; }
+.chk { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
+.chk input { accent-color:var(--accent); width:16px; height:16px; margin:0; flex:none; }
+.chk .meta { margin:0 0 0 auto; }
+.tgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:0 16px; }
+.bar { height:4px; background:var(--line); border-radius:2px; overflow:hidden; position:relative; }
+.bar::after { content:""; position:absolute; top:0; bottom:0; left:0; width:30%; background:var(--accent); animation:slide 1.4s ease-in-out infinite; }
+@keyframes slide { from { left:-30%; } to { left:100%; } }
+.runbox { border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; display:flex; flex-direction:column; gap:8px; background:var(--bg); }
+.log { max-height:260px; overflow-y:auto; display:flex; flex-direction:column; gap:3px; font-size:12.5px; }
+.ll { color:var(--muted); display:flex; gap:8px; align-items:baseline; overflow-wrap:anywhere; }
+.ll .si { width:14px; flex:none; text-align:center; font-family:var(--font-mono); }
+.ll.ent { color:var(--fg); }
+.ll.ent .si { color:var(--ok); }
+.ll.er { color:var(--bad); }
+.pill.mut { background:var(--bg); color:var(--muted); border:1px solid var(--line); }
+.pill.warn { background:var(--warn-soft); color:var(--warn); }
+.mark { font:500 11px var(--font-text); color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 5px; }
+.counts { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:13px; }
+.counts b { font-weight:600; font-variant-numeric:tabular-nums; }
+.filters { display:flex; flex-wrap:wrap; gap:8px; }
+.filters .seg { flex-wrap:wrap; }
+.bulk { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; }
+.entry { margin:0; display:flex; flex-direction:column; gap:6px; min-width:0; }
+.entry.nr { border-left:3px solid var(--warn); }
+.en { overflow-wrap:anywhere; }
+.nrb { background:var(--warn-soft); color:var(--warn); border-radius:6px; padding:6px 10px; font-size:13px; overflow-wrap:anywhere; }
+.entry .snip { white-space:pre-wrap; overflow-wrap:anywhere; }
+.entry details { font-size:12.5px; }
+.entry details > summary { cursor:pointer; color:var(--muted); }
+.evr { margin-top:6px; display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; }
+.evk { font-weight:600; color:var(--muted); }
+.doc { margin:6px 0 0; padding:6px 10px; border-left:3px solid var(--line); background:var(--bg); white-space:pre-wrap; overflow-wrap:anywhere; }
+.acts { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+.ef label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:8px 0 3px; }
+.ef input, .ef textarea { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:var(--radius); background:var(--bg); }
+.ef textarea { resize:vertical; }
+.ef [aria-invalid="true"] { border-color:var(--bad); }
+.ferr { color:var(--bad); font-size:12.5px; margin-top:3px; overflow-wrap:anywhere; }
+.okbox { background:var(--ok-soft); color:var(--ok); border-radius:var(--radius); padding:10px 12px; overflow-wrap:anywhere; }
+.okbox code { font-size:12px; }
+.stats { display:flex; flex-wrap:wrap; gap:8px; }
+.stat { border:1px solid var(--line); border-radius:var(--radius); padding:8px 12px; min-width:150px; flex:1; }
+.stat b { display:block; font:600 22px var(--font-head); }
+.stat span { font-size:12px; color:var(--muted); }
+.reset { border-top:1px solid var(--line); padding-top:10px; font-size:13px; }
+.linkbtn { border:0; background:none; padding:0; color:var(--muted); text-decoration:underline; font-size:12.5px; }
+.linkbtn:hover { color:var(--bad); }
+.confirm { display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+.confirm p { margin:0; color:var(--muted); }
+.msgbox { padding:14px; text-align:center; color:var(--muted); display:flex; flex-direction:column; gap:10px; align-items:center; }
+
 @media (max-width: 860px) {
+  .stepper { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .build { padding:10px; }
   body { overflow:hidden; }
   main { grid-template-columns:minmax(0,1fr); padding:8px; gap:0; }
   header { padding:8px 12px; }
@@ -149,6 +254,8 @@ td.null { color:var(--muted); }
   .panel.open ~ .scrim, .scrim.show { display:block; position:fixed; inset:0; background:var(--scrim); z-index:10; }
   .pclose { display:inline-block; }
   .msg.user { max-width:92%; }
+  #seg { flex-wrap:wrap; max-width:100%; }
+  #seg button { padding:5px 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation:none !important; transition:none !important; scroll-behavior:auto !important; }
@@ -161,14 +268,27 @@ td.null { color:var(--muted); }
   <header>
     <h1 class="brand">Ontology Chat</h1>
     <span class="status" id="status" role="status"><span class="dot"></span><span id="statusText">Checking backend...</span></span>
+    <nav class="seg" aria-label="Views" id="nav">
+      <a href="#chat" data-view="chat">Chat</a>
+      <a href="#build" data-view="build">Build ontology</a>
+    </nav>
     <span class="spacer"></span>
     <div class="seg" role="radiogroup" aria-label="Mode" id="seg">
-      <button type="button" role="radio" aria-checked="true" data-mode="ontology">With ontology</button>
-      <button type="button" role="radio" aria-checked="false" data-mode="baseline">Baseline</button>
+      <button type="button" role="radio" aria-checked="false" data-mode="generated" title="Answer using the generated, certified ontology">Generated</button>
+      <button type="button" role="radio" aria-checked="true" data-mode="ontology" title="Answer using the hand-written ontology">Hand-written</button>
+      <button type="button" role="radio" aria-checked="false" data-mode="baseline" title="No ontology: raw schema only">Baseline</button>
+      <button type="button" role="radio" aria-checked="false" data-mode="library" title="Answer using the ontology generated by the NVIDIA Auto Ontology library, read live from its stack">NVIDIA library</button>
     </div>
     <button type="button" class="btn" id="newChat">New chat</button>
   </header>
-  <main>
+  <section class="build" id="buildView" aria-label="Build ontology" hidden>
+    <div class="bwrap">
+      <p class="intro"><strong>An ontology tells the AI agent what cryptic columns and codes mean.</strong> Here the machine drafts it from the database, a person reviews and certifies each entry, and only certified entries are published to the store the chat agent searches.</p>
+      <ol class="stepper" id="stepper" aria-label="Steps"></ol>
+      <div id="stagePane"></div>
+    </div>
+  </section>
+  <main id="chatView">
     <section class="chat" aria-label="Chat">
       <div class="scroll" id="scroll" aria-live="polite"></div>
       <form class="composer" id="composer">
@@ -204,7 +324,8 @@ function sleep(ms, signal) {
 }
 
 /* ---------- state ---------- */
-var state = { sessionId: newId(), mode: 'ontology', messages: [], selected: -1, streaming: false, abort: null, suggestions: [], ontology: null, tab: 'answer', ontQuery: '' };
+var state = { sessionId: newId(), mode: 'ontology', messages: [], selected: -1, streaming: false, abort: null, suggestions: [], onts: { generated: null, curated: null, library: null }, ontErr: {}, generatedTerms: null, library: null, modeTouched: false, tab: 'answer', ontQuery: '' };
+var MODE_LABEL = { generated: 'generated', ontology: 'hand-written', baseline: 'baseline', library: 'NVIDIA library' };
 
 /* ---------- markdown ---------- */
 function inline(s) {
@@ -251,9 +372,10 @@ function md(text) {
 function getJSON(path) {
   return fetch(path).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
 }
-function streamChat(body, signal, onEvent) {
-  return fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal:signal }).then(function (r) {
-    if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
+function streamChat(body, signal, onEvent) { return streamPost('/api/chat', body, signal, onEvent); }
+function streamPost(path, body, signal, onEvent) {
+  return fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal:signal }).then(function (r) {
+    if (!r.ok || !r.body) { var er = new Error('HTTP ' + r.status); er.status = r.status; throw er; }
     var reader = r.body.getReader(), dec = new TextDecoder(), buf = '';
     function handle(block) {
       var data = block.split('\n').filter(function (l) { return l.indexOf('data:') === 0; }).map(function (l) { return l.slice(5).replace(/^ /, ''); }).join('\n');
@@ -282,7 +404,11 @@ function loadHealth() {
     if (!h.ollama) warns.push('Ollama unreachable');
     if (!h.db) warns.push('Database unavailable');
     if (warns.length) { el.className = 'status warn'; tx.textContent = warns.join(', ') + ' (' + (h.model || 'no model') + ')'; }
-    else { el.className = 'status ok'; tx.textContent = h.model + ' · ' + h.terms + ' terms'; }
+    else { el.className = 'status ok'; tx.textContent = h.model + ' · ' + h.terms + ' hand-written' + (typeof h.generated_terms === 'number' ? ' · ' + h.generated_terms + ' generated' : '') + (h.library && h.library.reachable ? ' · ' + h.library.terms + ' library' : '') + ' terms'; }
+    state.generatedTerms = typeof h.generated_terms === 'number' ? h.generated_terms : null;
+    state.library = h.library || null;
+    if (state.generatedTerms > 0 && !state.modeTouched && !state.messages.length && state.mode !== 'generated') setMode('generated', true);
+    else if (!state.messages.length) renderChat();
   }).catch(function () { el.className = 'status warn'; tx.textContent = 'Backend not reachable'; });
 }
 
@@ -320,7 +446,7 @@ function stepsHTML(m) {
 }
 function msgHTML(m, idx) {
   if (m.role === 'user') return esc(m.text);
-  var h = '<div class="mhead"><span class="tag ' + (m.mode === 'baseline' ? 'base' : '') + '">' + (m.mode === 'baseline' ? 'baseline' : 'ontology') + '</span>';
+  var h = '<div class="mhead"><span class="tag ' + (m.mode === 'baseline' ? 'base' : '') + '">' + esc(MODE_LABEL[m.mode] || m.mode) + '</span>';
   h += '<button type="button" class="btn small details-btn" data-details="' + idx + '">Details</button></div>';
   h += stepsHTML(m);
   if (m.text) h += '<div class="md">' + md(m.text) + '</div>';
@@ -333,7 +459,15 @@ function msgHTML(m, idx) {
 function renderChat() {
   var nearBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 80;
   if (!state.messages.length) {
-    scrollEl.innerHTML = '<div class="empty"><h2>Ask the bank database</h2><p>With ontology, the agent looks up business terms first and maps them to the cryptic columns; in baseline it sees only the raw schema.</p><div class="chips" id="chips"></div></div>';
+    if (state.mode === 'generated' && state.generatedTerms === 0) {
+      scrollEl.innerHTML = '<div class="empty"><h2>Nothing is published yet</h2><p>The generated ontology is empty. Build one, certify the entries you trust, and publish them; then this mode will use them. You can still ask a question now, but the agent will find no generated terms.</p><a class="btn primary" href="#build">Go to Build ontology</a></div>';
+      return;
+    }
+    if (state.mode === 'library' && state.library && !state.library.reachable) {
+      scrollEl.innerHTML = '<div class="empty"><h2>The Auto Ontology stack is not running</h2><p>NVIDIA library mode reads its ontology from the NVIDIA Auto Ontology stack, which did not answer' + (state.library.error ? ': ' + esc(state.library.error) : '.') + ' Start the stack and reload this page, or pick another mode.</p></div>';
+      return;
+    }
+    scrollEl.innerHTML = '<div class="empty"><h2>Ask your database</h2><p>With an ontology (generated, hand-written or the NVIDIA library\'s), the agent looks up business terms first and maps them to the cryptic columns; in baseline it sees only the raw schema.</p><div class="chips" id="chips"></div></div>';
     var chips = $('chips');
     state.suggestions.forEach(function (q) {
       var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = q;
@@ -371,6 +505,8 @@ function termCard(t) {
   if (t.synonyms && t.synonyms.length) h += '<p>Also: ' + t.synonyms.map(esc).join(', ') + '</p>';
   if (t.columns && t.columns.length) h += '<div class="cols">' + t.columns.map(function (c) { return '<code>' + esc(c) + '</code>'; }).join('') + '</div>';
   if (t.sql) h += '<pre class="snip mono">' + esc(t.sql) + '</pre>';
+  if (t.column_details && t.column_details.length) h += '<details class="cd"><summary>Column meanings (' + t.column_details.length + ')</summary><ul>' + t.column_details.map(function (c) { return '<li><code>' + esc(c.column) + '</code> ' + esc(c.name) + (c.description ? ': ' + esc(c.description) : '') + '</li>'; }).join('') + '</ul></details>';
+  if (t.relationships && t.relationships.length) h += '<details class="cd"><summary>Joins (' + t.relationships.length + ')</summary><ul>' + t.relationships.map(function (r) { return '<li><code>' + esc(r.join) + '</code>' + (r.term ? ' (' + esc(r.term) + ')' : '') + '</li>'; }).join('') + '</ul></details>';
   return h + '</div>';
 }
 function cell(v) {
@@ -423,19 +559,26 @@ function answerPanel() {
   }
   return h + '</div>';
 }
+function ontSource() { return state.mode === 'generated' ? 'generated' : state.mode === 'library' ? 'library' : 'curated'; }
 function ontologyPanel() {
-  var h = '<input class="search" id="ontSearch" type="search" placeholder="Search terms, synonyms, columns..." aria-label="Search ontology" value="' + esc(state.ontQuery) + '">';
+  var src = ontSource(), data = state.onts[src];
+  var which = src === 'generated' ? 'Showing the generated ontology: certified entries you have published.' : src === 'library' ? 'Showing the ontology the NVIDIA Auto Ontology library generated, read live from its stack.' : state.mode === 'baseline' ? 'Baseline mode uses no ontology. Showing the hand-written one for reference.' : 'Showing the hand-written ontology.';
+  var h = '<p class="note">' + which + '</p>';
+  h += '<input class="search" id="ontSearch" type="search" placeholder="Search terms, synonyms, columns..." aria-label="Search ontology" value="' + esc(state.ontQuery) + '">';
   h += '<div id="ontList">';
-  if (state.ontology === null) h += '<p class="note">Loading ontology...</p>';
-  else if (state.ontology === false) h += '<p class="note">Could not load the ontology.</p>';
+  if (data === null) h += '<p class="note">Loading ontology...</p>';
+  else if (data === false) h += '<p class="note">Could not load the ontology. The backend may be down; switch tabs to try again.</p>';
   return h + '</div>';
 }
 function fillOntList() {
-  var box = $('ontList'); if (!box || !Array.isArray(state.ontology)) return;
+  var src = ontSource(), data = state.onts[src];
+  var box = $('ontList'); if (!box || !Array.isArray(data)) return;
+  if (!data.length && src === 'library') { box.innerHTML = '<p class="note">' + (state.ontErr.library ? 'The Auto Ontology stack is not running or not reachable: ' + esc(state.ontErr.library) : 'The library ontology is empty.') + '</p>'; return; }
+  if (!data.length) { box.innerHTML = src === 'generated' ? '<p class="note">Nothing is published yet. <a href="#build">Build and publish an ontology</a> to see it here.</p>' : '<p class="note">The hand-written ontology is empty.</p>'; return; }
   var q = state.ontQuery.trim().toLowerCase();
-  var list = state.ontology.filter(function (t) {
+  var list = data.filter(function (t) {
     if (!q) return true;
-    return [t.name, t.description, (t.synonyms || []).join(' '), (t.columns || []).join(' '), t.id].join(' ').toLowerCase().indexOf(q) >= 0;
+    return [t.name, t.description, (t.synonyms || []).join(' '), (t.columns || []).join(' '), t.id, (t.column_details || []).map(function (c) { return c.name + ' ' + c.description; }).join(' ')].join(' ').toLowerCase().indexOf(q) >= 0;
   });
   var h = '';
   [['term', 'Terms'], ['sql_attribute', 'SQL attributes'], ['relationship', 'Relationships']].forEach(function (g) {
@@ -461,8 +604,10 @@ pbody.addEventListener('click', function (e) {
 });
 function setTab(t) {
   state.tab = t;
-  if (t === 'ontology' && state.ontology === null) {
-    getJSON('/api/ontology').then(function (d) { state.ontology = d.terms || []; if (state.tab === 'ontology') renderPanel(); }).catch(function () { state.ontology = false; if (state.tab === 'ontology') renderPanel(); });
+  var src = ontSource();
+  if (t === 'ontology' && (!Array.isArray(state.onts[src]) || state.ontErr[src])) {
+    state.onts[src] = null;
+    getJSON('/api/ontology' + (src !== 'curated' ? '?source=' + src : '')).then(function (d) { state.onts[src] = d.terms || []; state.ontErr[src] = d.error || null; if (state.tab === 'ontology') renderPanel(); }).catch(function () { state.onts[src] = false; if (state.tab === 'ontology') renderPanel(); });
   }
   renderPanel();
 }
@@ -533,15 +678,529 @@ function resetChat() {
   scrollEl.innerHTML = ''; closePanel(); renderChat(); renderPanel();
 }
 $('newChat').addEventListener('click', resetChat);
+function setMode(mode, auto) {
+  if (!auto) state.modeTouched = true;
+  state.mode = mode;
+  Array.prototype.forEach.call($('seg').children, function (x) { x.setAttribute('aria-checked', x.dataset.mode === mode); });
+  resetChat();
+}
 $('seg').addEventListener('click', function (e) {
   var b = e.target.closest('button[data-mode]'); if (!b || b.dataset.mode === state.mode) return;
-  state.mode = b.dataset.mode;
-  Array.prototype.forEach.call($('seg').children, function (x) { x.setAttribute('aria-checked', x === b); });
-  resetChat();
+  setMode(b.dataset.mode);
 });
 
+/* ---------- build ontology ---------- */
+var STAGES = ['profile', 'generate', 'review', 'publish'];
+var STAGE_NAME = { profile:'Profile', generate:'Generate', review:'Review & certify', publish:'Publish' };
+var STATUS_LABEL = { draft:'Draft', certified:'Certified', rejected:'Rejected' };
+var STATUS_PILL = { draft:'mut', certified:'ok', rejected:'bad' };
+var build = {
+  started:false, gen:null, loading:false, loadError:null, stage:'profile', busy:{}, notice:{}, selTables:{}, useDocs:true,
+  running:false, log:[], created:0, errCount:0, summary:null, genStart:0, abort:null, timer:null,
+  filter:'all', kind:'all', edit:null, cardErr:{}, bulkNote:null, result:null, confirmReset:false
+};
+var stepperEl = $('stepper'), stagePane = $('stagePane'), bvEl = $('buildView');
+
+function serverMsg(e) {
+  var b = e && e.body; if (!b) return '';
+  if (typeof b.error === 'string') return b.error;
+  if (typeof b.detail === 'string') return b.detail;
+  if (Array.isArray(b.detail)) return b.detail.map(function (d) { return d && d.msg ? d.msg : ''; }).filter(Boolean).join('; ');
+  return '';
+}
+function friendly(e, doing) {
+  if (e && (e.status === 404 || e.status === 405)) return 'This server does not offer the ontology builder yet. The backend may need to be updated or restarted.';
+  if (!e || !e.status) return 'Could not reach the backend, or it sent a reply this page could not read. Check that the server is running, then try again.';
+  var m = serverMsg(e);
+  return 'The server could not ' + doing + (m ? ': ' + m : '. Please try again in a moment.');
+}
+function req(method, path, body) {
+  var opt = { method:method, headers:{} };
+  if (body !== undefined) { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }
+  return fetch(path, opt).then(function (r) {
+    return r.text().then(function (t) {
+      var d = null; try { d = t ? JSON.parse(t) : null; } catch (x) { d = null; }
+      if (!r.ok) { var er = new Error('HTTP ' + r.status); er.status = r.status; er.body = d; throw er; }
+      if (d === null || typeof d !== 'object') throw new Error('Unreadable reply');
+      return d;
+    });
+  });
+}
+function fmtNum(n) { return typeof n === 'number' ? n.toLocaleString('en-US') : String(n == null ? '' : n); }
+function fmtDur(ms) { var s = (ms || 0) / 1000; if (s < 60) return s.toFixed(1) + ' s'; var m = Math.floor(s / 60); return m + ' min ' + Math.round(s - m * 60) + ' s'; }
+function fmtPct(v) { return (Math.round(+v * 10) / 10) + '%'; }
+function fmtOverlap(v) { var o = +v; if (o <= 1) o *= 100; return (Math.round(o * 10) / 10) + '%'; }
+function fmtVal(v) { return v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v == null ? 'none' : v); }
+function splitList(s) { return String(s || '').split(/[,\n]/).map(function (x) { return x.trim(); }).filter(Boolean); }
+
+function entries() { return build.gen && build.gen.entries ? build.gen.entries : []; }
+function tables() { return build.gen && build.gen.tables ? build.gen.tables : []; }
+function findEntry(id) { var l = entries(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+function upsert(en) {
+  if (!en || !build.gen) return;
+  if (!build.gen.entries) build.gen.entries = [];
+  var l = build.gen.entries;
+  for (var i = 0; i < l.length; i++) if (l[i].id === en.id) { l[i] = en; return; }
+  l.push(en);
+}
+function tally() {
+  var c = { total:0, draft:0, certified:0, rejected:0, review:0, pending:0, published:0 };
+  entries().forEach(function (e) {
+    c.total++; if (e.status === 'draft' || e.status === 'certified' || e.status === 'rejected') c[e.status]++;
+    if (e.status === 'draft' && e.needs_review) c.review++;
+    if (e.status === 'certified' && !e.published) c.pending++;
+    if (e.published) c.published++;
+  });
+  return c;
+}
+function isHot(col) { var f = col.flags || []; return f.indexOf('coded') >= 0 || f.indexOf('cryptic') >= 0; }
+function hotCount(t) { return (t.columns || []).filter(isHot).length; }
+function example() {
+  var ts = tables();
+  for (var i = 0; i < ts.length; i++) {
+    var cs = ts[i].columns || [];
+    for (var j = 0; j < cs.length; j++) if ((cs[j].flags || []).indexOf('coded') >= 0 && (cs[j].samples || []).length >= 2) return { col:ts[i].name + '.' + cs[j].name, vals:cs[j].samples.slice(0, 4).map(function (s) { return s.value; }) };
+  }
+  return null;
+}
+
+function unlocked(s) {
+  var t = tally();
+  if (s === 'profile') return true;
+  if (!build.gen) return false;
+  if (s === 'generate') return !!build.gen.profiled || t.total > 0;
+  if (s === 'review') return t.total > 0;
+  return t.certified > 0 || t.published > 0;
+}
+function isDone(s) {
+  var t = tally();
+  if (!build.gen) return false;
+  if (s === 'profile') return !!build.gen.profiled;
+  if (s === 'generate') return t.total > 0;
+  if (s === 'review') return t.certified > 0 && t.draft === 0;
+  return t.published > 0 && t.pending === 0;
+}
+function landing() {
+  var t = tally();
+  if (t.total) return (t.draft === 0 && t.certified > 0) ? 'publish' : 'review';
+  return build.gen && build.gen.profiled ? 'generate' : 'profile';
+}
+function applyGen(s) {
+  build.gen = s;
+  if (!Array.isArray(s.entries)) s.entries = [];
+  if (!Array.isArray(s.tables)) s.tables = [];
+  s.tables.forEach(function (t) { if (!(t.name in build.selTables)) build.selTables[t.name] = true; });
+  if (!s.docs_available) build.useDocs = false;
+}
+function loadBuild() {
+  if (build.loading) return;
+  build.loading = true; build.loadError = null; renderBuild();
+  req('GET', '/api/gen/state').then(function (s) { applyGen(s); build.stage = landing(); })
+    .catch(function (e) { build.loadError = friendly(e, 'load the ontology builder'); })
+    .then(function () { build.loading = false; renderBuild(); });
+}
+function goStage(s) { if (!unlocked(s)) return; build.stage = s; renderBuild(); bvEl.scrollTop = 0; }
+
+/* rendering */
+function renderBuild() { renderStepper(); renderStage(); }
+function renderStepper() {
+  var t = tally(), g = build.gen;
+  var subs = {
+    profile: g && g.profiled ? tables().length + ' tables' : 'Not run yet',
+    generate: t.total ? t.total + ' entries drafted' : 'Not run yet',
+    review: t.total ? t.certified + ' of ' + t.total + ' certified' : 'Nothing to review',
+    publish: t.published ? t.published + ' published' : 'Not published'
+  };
+  stepperEl.innerHTML = STAGES.map(function (s, i) {
+    var ok = unlocked(s), cur = build.stage === s, done = isDone(s) && !cur;
+    return '<li><button type="button" class="step' + (done ? ' done' : '') + '" data-stage="' + s + '"' + (cur ? ' aria-current="step"' : '') + (ok ? '' : ' disabled title="Finish the earlier stage first"') + '>' +
+      '<span class="stn" aria-hidden="true">' + (done ? '✓' : (i + 1)) + '</span><span><span class="sl">' + esc(STAGE_NAME[s]) + '</span><br><span class="ss">' + esc(subs[s]) + '</span></span></button></li>';
+  }).join('');
+}
+function noticeHTML(stage) { return build.notice[stage] ? '<div class="err" role="alert">' + esc(build.notice[stage]) + '</div>' : ''; }
+function renderStage() {
+  if (!build.gen) {
+    stagePane.innerHTML = '<div class="stage">' + (build.loading || !build.loadError
+      ? '<div class="msgbox"><div class="working">Loading the current state of the builder...</div></div>'
+      : '<div class="msgbox"><div class="err" role="alert">' + esc(build.loadError) + '</div><button type="button" class="btn" data-act="reload">Try again</button></div>') + '</div>';
+    return;
+  }
+  if (build.stage === 'profile') renderProfile();
+  else if (build.stage === 'generate') renderGenerate();
+  else if (build.stage === 'review') renderReview();
+  else renderPublish();
+}
+function nextBtn(stage, label, primary) { return '<button type="button" class="btn' + (primary ? ' primary' : '') + '" data-stage="' + stage + '"' + (unlocked(stage) ? '' : ' disabled') + '>' + esc(label) + '</button>'; }
+
+/* stage 1: profile */
+function colHTML(c) {
+  var hot = isHot(c), fl = c.flags || [], sm = c.samples || [];
+  var h = '<div class="colr' + (hot ? ' attn' : '') + '"><div class="colh"><code>' + esc(c.name) + '</code><span class="ty">' + esc(c.type) + '</span>';
+  h += fl.map(function (f) { return '<span class="fchip' + (f === 'coded' || f === 'cryptic' ? ' hot' : '') + '">' + esc(f) + '</span>'; }).join('');
+  if (hot) h += '<span class="pill warn">needs an explanation</span>';
+  h += '</div><div class="colm">' + esc(fmtNum(c.distinct)) + ' distinct · ' + esc(fmtPct(c.null_pct || 0)) + ' empty';
+  if (c.min != null && c.max != null && fl.indexOf('text') < 0) h += ' · range ' + esc(c.min) + ' to ' + esc(c.max);
+  h += '</div>';
+  if (sm.length) {
+    h += '<div class="samp" aria-label="Sample values">' + sm.slice(0, 10).map(function (s) { return '<span class="sv">' + esc(s.value) + (s.count != null ? '<small>' + esc(fmtNum(s.count)) + '</small>' : '') + '</span>'; }).join('');
+    if (sm.length > 10) h += '<span class="sv">+' + (sm.length - 10) + ' more</span>';
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+function renderProfile() {
+  var g = build.gen, busy = build.busy.profile, ts = tables();
+  var h = '<div class="stage"><h2>Profile the database</h2>';
+  h += '<p class="lead">The profiler measures every table: row counts, column types, how many distinct values each column holds and which values are most common. It shows what the data contains, not what it means.</p>';
+  h += '<div class="row"><button type="button" class="btn primary" data-act="profile"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Profiling...' : g.profiled ? 'Profile again' : 'Profile the database') + '</button>';
+  if (busy) h += '<span class="working">Reading each table. This usually takes a few seconds.</span>';
+  else if (g.profiled) h += nextBtn('generate', 'Continue to Generate', true);
+  h += '</div>' + noticeHTML('profile');
+  if (!g.profiled) h += '<p class="note">Nothing has been profiled yet. Run the profile to see the tables and columns here.</p>';
+  else if (!ts.length) h += '<p class="note">The profile ran but found no tables.</p>';
+  else {
+    var hot = 0, cols = 0;
+    ts.forEach(function (t) { hot += hotCount(t); cols += (t.columns || []).length; });
+    var ex = example();
+    h += '<div class="callout"><strong>' + fmtNum(ts.length) + ' tables, ' + fmtNum(cols) + ' columns.</strong> ' + (hot ? hot + ' of them are coded or cryptic (highlighted below): the generator has to explain these. ' : 'None are flagged as coded or cryptic. ') +
+      (ex ? '<code>' + esc(ex.col) + '</code> holds ' + esc(ex.vals.join(', ')) + ', but nothing in the data says what each value means.' : '') + '</div>';
+    h += '<div class="tlist">' + ts.map(function (t) {
+      var n = hotCount(t);
+      return '<details class="tbl"><summary><span class="tn">' + esc(t.name) + '</span><span class="badge">' + esc(fmtNum(t.row_count)) + ' rows</span>' +
+        '<span class="pill ' + (t.has_docs ? 'ok' : 'mut') + '">' + (t.has_docs ? 'has docs' : 'no docs') + '</span>' +
+        (n ? '<span class="pill warn">' + n + ' coded or cryptic</span>' : '') + '</summary><div class="tbody">' + (t.columns || []).map(colHTML).join('') + '</div></details>';
+    }).join('') + '</div>';
+    var fks = g.fk_candidates || [];
+    h += '<div><h3>Likely joins between tables</h3>';
+    if (!fks.length) h += '<p class="note">No foreign-key candidates were found.</p>';
+    else h += '<ul class="fks">' + fks.map(function (f) { return '<li><code>' + esc(f.from) + '</code><span aria-label="references">→</span><code>' + esc(f.to) + '</code><span class="badge">' + esc(fmtOverlap(f.overlap)) + ' of values match</span></li>'; }).join('') + '</ul>';
+    h += '</div>';
+  }
+  stagePane.innerHTML = h + '</div>';
+}
+
+/* stage 2: generate */
+function logHTML(l) {
+  var ic = l.k === 'e' ? '✓' : l.k === 'er' ? '×' : '';
+  return '<div class="ll' + (l.k === 'e' ? ' ent' : l.k === 'er' ? ' er' : '') + '"><span class="si">' + ic + '</span><span>' + (l.table ? '<span class="mono">' + esc(l.table) + '</span>: ' : '') + esc(l.text) + '</span></div>';
+}
+function logAdd(l) {
+  build.log.push(l); if (build.log.length > 500) build.log.shift();
+  var box = $('genLog');
+  if (box && build.stage === 'generate') {
+    var near = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    box.insertAdjacentHTML('beforeend', logHTML(l));
+    if (near) box.scrollTop = box.scrollHeight;
+  }
+}
+function genStats() {
+  var el = $('genCount'); if (el) el.textContent = build.created + (build.created === 1 ? ' entry' : ' entries') + ' drafted so far' + (build.errCount ? ', ' + build.errCount + (build.errCount === 1 ? ' problem' : ' problems') : '');
+}
+function renderGenerate() {
+  var g = build.gen, ts = tables(), docs = !!g.docs_available, run = build.running;
+  var selN = ts.filter(function (t) { return build.selTables[t.name]; }).length;
+  var h = '<div class="stage"><h2>Generate draft entries</h2>';
+  h += '<p class="lead">The generator reads the profile of each table and drafts entries: business terms, reviewed SQL attributes and table relationships. These are drafts only; nothing reaches the chat agent until a person certifies and publishes them.</p>';
+  h += '<div><label class="chk"><input type="checkbox" id="useDocs" data-act="docs"' + (build.useDocs && docs ? ' checked' : '') + (docs && !run ? '' : ' disabled') + '><span><strong>Use documentation</strong></span></label>';
+  h += '<p class="note">' + (docs ? 'On: the generator also reads the data documentation, so it can say what a code like C means instead of guessing from the values. Try it with and without to compare the drafts.' : 'No documentation was found for this database, so drafts rest on the data alone and codes it cannot explain will be flagged for review.') + '</p></div>';
+  h += '<div><h3>Tables to draft from</h3><div class="row" style="margin-bottom:4px"><button type="button" class="btn small" data-act="tables-all"' + (run ? ' disabled' : '') + '>Select all</button><button type="button" class="btn small" data-act="tables-none"' + (run ? ' disabled' : '') + '>Select none</button></div>';
+  h += '<div class="tgrid">' + ts.map(function (t) {
+    return '<label class="chk"><input type="checkbox" data-tbl="' + esc(t.name) + '"' + (build.selTables[t.name] ? ' checked' : '') + (run ? ' disabled' : '') + '><span class="mono" style="overflow-wrap:anywhere">' + esc(t.name) + '</span><span class="meta">' + esc(fmtNum(t.row_count)) + ' rows</span></label>';
+  }).join('') + '</div></div>';
+  h += '<div class="row"><button type="button" class="btn primary" data-act="generate"' + (run || !selN ? ' disabled' : '') + '>' + (run ? 'Generating...' : 'Generate entries') + '</button>';
+  if (run) h += '<button type="button" class="btn danger" data-act="stop">Stop</button>';
+  else if (!selN) h += '<span class="note">Select at least one table.</span>';
+  else if (tally().total) h += nextBtn('review', 'Go to Review', false);
+  h += '</div>' + noticeHTML('generate');
+  if (run || build.log.length || build.summary) {
+    h += '<div class="runbox">';
+    if (run) {
+      h += '<div class="working">Generating. This is slow: a full database can take several minutes. Keep this page open; drafts appear below as they are written.</div><div class="bar" role="progressbar" aria-label="Generating"></div>';
+      h += '<div class="meta" style="margin:0"><span id="genElapsed">' + esc(fmtDur(Date.now() - build.genStart)) + '</span> elapsed · <span id="genCount"></span></div>';
+    } else if (build.summary) {
+      var s = build.summary;
+      h += '<div><strong>' + (s.stopped ? 'Stopped.' : s.incomplete ? 'The connection ended early.' : 'Done.') + '</strong> ' + esc(String(s.created)) + (s.created === 1 ? ' entry' : ' entries') + ' drafted' + (s.elapsed != null ? ' in ' + esc(fmtDur(s.elapsed)) : '') + (build.errCount ? '; ' + build.errCount + (build.errCount === 1 ? ' problem' : ' problems') + ' (see the log)' : '') + '.</div>';
+      if (tally().total) h += '<div class="row">' + nextBtn('review', 'Review the drafts', true) + '</div>';
+    }
+    h += '<div class="log" id="genLog" role="log" tabindex="0" aria-label="Generation log">' + build.log.map(logHTML).join('') + '</div></div>';
+  }
+  stagePane.innerHTML = h + '</div>';
+  if (run) genStats();
+  var lg = $('genLog'); if (lg) lg.scrollTop = lg.scrollHeight;
+}
+function tickTimer() { var el = $('genElapsed'); if (el) el.textContent = fmtDur(Date.now() - build.genStart); }
+function startGenerate() {
+  if (build.running) return;
+  var names = tables().map(function (t) { return t.name; }).filter(function (n) { return build.selTables[n]; });
+  if (!names.length) return;
+  var all = names.length === tables().length;
+  build.running = true; build.log = []; build.created = 0; build.errCount = 0; build.summary = null; build.notice.generate = null; build.genStart = Date.now();
+  var ac = new AbortController(); build.abort = ac;
+  build.timer = setInterval(tickTimer, 1000);
+  renderBuild();
+  function onEv(ev) {
+    if (ev.type === 'progress') logAdd({ k:'p', table:ev.table, text:ev.message || 'Working' });
+    else if (ev.type === 'entry' && ev.entry) {
+      upsert(ev.entry); build.created++;
+      logAdd({ k:'e', table:ev.entry.evidence && ev.entry.evidence.table, text:'Drafted ' + kindLabel(ev.entry.kind).toLowerCase() + ' "' + (ev.entry.name || '') + '"' + (ev.entry.needs_review ? ' (flagged for review)' : '') });
+      genStats(); renderStepper();
+    } else if (ev.type === 'error') { build.errCount++; logAdd({ k:'er', table:ev.table, text:ev.message || 'Something went wrong; continuing with the other tables.' }); genStats(); }
+    else if (ev.type === 'done') { build.summary = { created:typeof ev.created === 'number' ? ev.created : build.created, elapsed:ev.elapsed_ms }; }
+  }
+  streamPost('/api/gen/generate', { tables: all ? null : names, use_docs: !!(build.useDocs && build.gen.docs_available) }, ac.signal, onEv).catch(function (e) {
+    if (e && e.name === 'AbortError') build.summary = { created:build.created, elapsed:Date.now() - build.genStart, stopped:true };
+    else build.notice.generate = friendly(e, 'generate entries');
+  }).then(function () {
+    clearInterval(build.timer); build.running = false; build.abort = null;
+    if (!build.summary) build.summary = { created:build.created, elapsed:Date.now() - build.genStart, incomplete:!build.notice.generate };
+    renderBuild();
+    req('GET', '/api/gen/state').then(function (s) { applyGen(s); renderBuild(); }).catch(function () {});
+  });
+}
+
+/* stage 3: review */
+function visible(e) {
+  var f = build.filter;
+  if (f === 'review' && !(e.status === 'draft' && e.needs_review)) return false;
+  if ((f === 'draft' || f === 'certified' || f === 'rejected') && e.status !== f) return false;
+  if (build.kind !== 'all' && e.kind !== build.kind) return false;
+  return true;
+}
+function prio(e) { return e.status === 'draft' && e.needs_review ? 0 : e.status === 'draft' ? 1 : 2; }
+function renderReview() {
+  stagePane.innerHTML = '<div class="stage"><h2>Review and certify</h2><div id="reviewTop"></div><div id="entryList"></div></div>';
+  renderReviewTop(); renderEntryList();
+}
+function renderReviewTop() {
+  var box = $('reviewTop'); if (!box) return;
+  var t = tally(), ex = example();
+  var h = '<p class="lead">A person has to review every draft because the machine only sees the data. ' + (ex ? 'It can see that <code>' + esc(ex.col) + '</code> holds ' + esc(ex.vals.join(', ')) + ' but cannot know what each value means unless documentation says so. ' : 'It can see which values a column holds but cannot know what they mean unless documentation says so. ') + 'Entries it was unsure about are flagged. Certify what is right, edit what is close, reject what is wrong.</p>';
+  h += '<div class="counts" style="margin:12px 0"><span><b>' + t.draft + '</b> draft</span><span><b>' + t.certified + '</b> certified</span><span><b>' + t.rejected + '</b> rejected</span><span><b>' + t.review + '</b> need review</span></div>';
+  var fl = [['all', 'All', t.total], ['review', 'Needs review', t.review], ['draft', 'Draft', t.draft], ['certified', 'Certified', t.certified], ['rejected', 'Rejected', t.rejected]];
+  h += '<div class="filters"><div class="seg" role="radiogroup" aria-label="Filter by status">' + fl.map(function (f) { return '<button type="button" role="radio" aria-checked="' + (build.filter === f[0]) + '" data-act="filter" data-v="' + f[0] + '">' + f[1] + ' (' + f[2] + ')</button>'; }).join('') + '</div>';
+  var kl = [['all', 'All kinds'], ['term', 'Terms'], ['sql_attribute', 'SQL attributes'], ['relationship', 'Relationships']];
+  h += '<div class="seg" role="radiogroup" aria-label="Filter by kind">' + kl.map(function (f) { return '<button type="button" role="radio" aria-checked="' + (build.kind === f[0]) + '" data-act="kind" data-v="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div></div>';
+  var bulkIds = entries().filter(function (e) { return e.status === 'draft' && !e.needs_review; }).length;
+  h += '<div class="bulk" style="margin-top:12px"><button type="button" class="btn primary" data-act="bulk"' + (bulkIds && !build.busy.bulk ? '' : ' disabled') + '>' + (build.busy.bulk ? 'Certifying...' : 'Certify all drafts') + '</button>';
+  if (t.review) h += '<span class="note">' + t.review + (t.review === 1 ? ' flagged draft is' : ' flagged drafts are') + ' left out. Open each one and decide yourself.</span>';
+  else if (!t.draft) h += '<span class="note">No drafts left to certify.</span>';
+  if (t.certified) h += nextBtn('publish', 'Continue to Publish', false);
+  h += '</div>';
+  if (build.bulkNote) h += '<div class="' + (build.bulkNote.bad ? 'err' : 'okbox') + '" role="' + (build.bulkNote.bad ? 'alert' : 'status') + '" style="margin-top:8px">' + esc(build.bulkNote.text) + '</div>';
+  box.innerHTML = h;
+}
+function renderEntryList() {
+  var box = $('entryList'); if (!box) return;
+  var all = entries();
+  if (!all.length) { box.innerHTML = '<p class="note">There are no entries yet. Go back to Generate to draft some.</p>'; return; }
+  var list = all.filter(visible).sort(function (a, b) { return prio(a) - prio(b); });
+  box.innerHTML = list.length ? list.map(entryHTML).join('') : '<p class="note">No entries match these filters.</p>';
+}
+function evidenceHTML(en) {
+  var ev = en.evidence; if (!ev) return '';
+  var h = '<details><summary>Evidence it was drafted from</summary>';
+  if (ev.table) h += '<div class="evr"><span class="evk">Table</span><code>' + esc(ev.table) + '</code></div>';
+  var sm = Array.isArray(ev.samples) ? ev.samples : [];
+  if (sm.length) h += '<div class="evr"><span class="evk">Sample values</span></div><div class="samp">' + sm.slice(0, 12).map(function (s) {
+    return '<span class="sv">' + (s && typeof s === 'object' && 'value' in s ? esc(fmtVal(s.value)) + (s.count != null ? '<small>' + esc(fmtNum(s.count)) + '</small>' : '') : esc(fmtVal(s))) + '</span>';
+  }).join('') + '</div>';
+  var st = ev.stats && typeof ev.stats === 'object' ? Object.keys(ev.stats) : [];
+  if (st.length) h += '<div class="evr"><span class="evk">Stats</span>' + st.map(function (k) { return '<span class="sv">' + esc(k) + ': ' + esc(fmtVal(ev.stats[k])) + '</span>'; }).join('') + '</div>';
+  if (ev.doc_excerpt) h += '<div class="evr"><span class="evk">From the documentation</span></div><blockquote class="doc">' + esc(ev.doc_excerpt) + '</blockquote>';
+  else h += '<p class="note" style="margin-top:6px">No documentation excerpt was used, so this draft rests on the data alone.</p>';
+  return h + '</details>';
+}
+function fieldHTML(ed, f, label, area, rows, mono) {
+  var err = ed.errs[f], id = 'ef-' + f;
+  var attrs = ' id="' + id + '" data-f="' + f + '"' + (ed.saving ? ' disabled' : '') + (err ? ' aria-invalid="true" aria-describedby="' + id + '-err"' : '');
+  return '<label for="' + id + '">' + label + '</label>' + (area
+    ? '<textarea rows="' + rows + '"' + (mono ? ' class="mono"' : '') + attrs + '>' + esc(ed.v[f]) + '</textarea>'
+    : '<input type="text"' + attrs + ' value="' + esc(ed.v[f]) + '">') + (err ? '<div class="ferr" id="' + id + '-err" role="alert">' + esc(err) + '</div>' : '');
+}
+function entryHTML(en) {
+  var ed = build.edit && build.edit.id === en.id ? build.edit : null;
+  var flagged = en.status === 'draft' && en.needs_review, busy = !!build.busy['e:' + en.id], eid = esc(en.id);
+  var h = '<article class="card entry' + (flagged ? ' nr' : '') + '" data-id="' + eid + '"><div class="t"><span class="en">' + esc(en.name) + '</span><span class="badge">' + esc(kindLabel(en.kind)) + '</span>' +
+    '<span class="pill ' + (STATUS_PILL[en.status] || 'mut') + '">' + esc(STATUS_LABEL[en.status] || en.status) + '</span>';
+  if (en.origin === 'edited') h += '<span class="mark" title="A person changed this entry after it was generated">edited</span>';
+  if (en.published) h += '<span class="mark">published</span>';
+  h += '</div>';
+  if (flagged) h += '<div class="nrb"><strong>Needs your review.</strong> ' + esc(en.review_note || 'The generator was not confident about this entry.') + '</div>';
+  else if (en.needs_review && en.review_note) h += '<div class="meta" style="margin:0">Was flagged: ' + esc(en.review_note) + '</div>';
+  if (ed) {
+    h += '<div class="ef">' + fieldHTML(ed, 'name', 'Name') + fieldHTML(ed, 'description', 'Description', true, 3) + fieldHTML(ed, 'synonyms', 'Synonyms (comma-separated)') +
+      fieldHTML(ed, 'columns', 'Columns (comma-separated, as table.column)') + fieldHTML(ed, 'sql', 'SQL (optional)', true, 5, true);
+    if (ed.general) h += '<div class="err" role="alert">' + esc(ed.general) + '</div>';
+    h += '<div class="acts"><button type="button" class="btn primary" data-act="save"' + (ed.saving ? ' disabled' : '') + '>' + (ed.saving ? 'Saving...' : 'Save') + '</button><button type="button" class="btn" data-act="cancel"' + (ed.saving ? ' disabled' : '') + '>Cancel</button></div></div>';
+  } else {
+    if (en.description) h += '<p>' + esc(en.description) + '</p>';
+    if (en.synonyms && en.synonyms.length) h += '<p>Also: ' + en.synonyms.map(esc).join(', ') + '</p>';
+    if (en.columns && en.columns.length) h += '<div class="cols">' + en.columns.map(function (c) { return '<code>' + esc(c) + '</code>'; }).join('') + '</div>';
+    if (en.sql) h += '<pre class="snip mono">' + esc(en.sql) + '</pre>';
+    h += evidenceHTML(en);
+    var dis = busy ? ' disabled' : '';
+    h += '<div class="acts">';
+    if (en.status !== 'certified') h += '<button type="button" class="btn small primary" data-act="certify" data-id="' + eid + '"' + dis + '>Certify</button>';
+    if (en.status !== 'rejected') h += '<button type="button" class="btn small danger" data-act="reject" data-id="' + eid + '"' + dis + '>Reject</button>';
+    h += '<button type="button" class="btn small" data-act="edit" data-id="' + eid + '"' + dis + '>Edit</button>';
+    if (en.status !== 'draft') h += '<button type="button" class="btn small" data-act="draft" data-id="' + eid + '"' + dis + '>Back to draft</button>';
+    h += '</div>';
+  }
+  if (build.cardErr[en.id]) h += '<div class="err" role="alert">' + esc(build.cardErr[en.id]) + '</div>';
+  return h + '</article>';
+}
+function refreshReview() { renderStepper(); if (build.stage === 'review') { renderReviewTop(); renderEntryList(); } }
+function setStatus(id, status) {
+  build.busy['e:' + id] = true; build.cardErr[id] = null; refreshReview();
+  req('PATCH', '/api/gen/entries/' + encodeURIComponent(id), { status:status }).then(function (u) { upsert(u); })
+    .catch(function (e) { build.cardErr[id] = friendly(e, 'update this entry'); })
+    .then(function () { build.busy['e:' + id] = false; refreshReview(); });
+}
+function fieldFor(e, msg) {
+  var b = e && e.body, d0 = b && Array.isArray(b.detail) && b.detail[0], f = b && (b.field || (d0 && d0.loc && d0.loc[d0.loc.length - 1]));
+  if (typeof f === 'string' && ['name', 'description', 'synonyms', 'columns', 'sql'].indexOf(f) >= 0) return f;
+  var m = String(msg).toLowerCase();
+  if (/invalid sql|sql (error|syntax|is)|syntax error|\bselect\b|\bsql\b/.test(m)) return 'sql';
+  if (/column|table\./.test(m)) return 'columns';
+  if (/synonym/.test(m)) return 'synonyms';
+  if (/description/.test(m)) return 'description';
+  if (/\bname\b/.test(m)) return 'name';
+  return null;
+}
+function saveEdit() {
+  var ed = build.edit; if (!ed || ed.saving) return;
+  var en = findEntry(ed.id), v = ed.v, patch = {}; if (!en) { build.edit = null; refreshReview(); return; }
+  ed.errs = {}; ed.general = null;
+  if (!v.name.trim()) { ed.errs.name = 'Give the entry a name.'; refreshReview(); return; }
+  if (v.name.trim() !== en.name) patch.name = v.name.trim();
+  if (v.description !== (en.description || '')) patch.description = v.description;
+  var syn = splitList(v.synonyms), cols = splitList(v.columns), sql = v.sql.trim();
+  if (JSON.stringify(syn) !== JSON.stringify(en.synonyms || [])) patch.synonyms = syn;
+  if (JSON.stringify(cols) !== JSON.stringify(en.columns || [])) patch.columns = cols;
+  if (sql !== (en.sql || '')) patch.sql = sql || null;
+  if (!Object.keys(patch).length) { build.edit = null; refreshReview(); return; }
+  ed.saving = true; refreshReview();
+  req('PATCH', '/api/gen/entries/' + encodeURIComponent(en.id), patch).then(function (u) { upsert(u); build.edit = null; })
+    .catch(function (e) {
+      var msg = serverMsg(e);
+      if (msg && (e.status === 400 || e.status === 422)) { var f = fieldFor(e, msg); if (f) ed.errs[f] = msg; else ed.general = msg; }
+      else ed.general = friendly(e, 'save this entry');
+    }).then(function () { ed.saving = false; refreshReview(); var bad = document.querySelector('.ef [aria-invalid="true"]'); if (bad) bad.focus(); });
+}
+function bulkCertify() {
+  var ids = entries().filter(function (e) { return e.status === 'draft' && !e.needs_review; }).map(function (e) { return e.id; });
+  if (!ids.length || build.busy.bulk) return;
+  build.busy.bulk = true; build.bulkNote = null; refreshReview();
+  req('POST', '/api/gen/entries/bulk', { ids:ids, status:'certified' }).then(function (r) {
+    ids.forEach(function (id) { var e = findEntry(id); if (e) e.status = 'certified'; });
+    var n = r && typeof r.updated === 'number' ? r.updated : ids.length;
+    build.bulkNote = { text:'Certified ' + n + (n === 1 ? ' draft.' : ' drafts.') };
+  }).catch(function (e) { build.bulkNote = { bad:true, text:friendly(e, 'certify the drafts') }; })
+    .then(function () { build.busy.bulk = false; refreshReview(); });
+}
+
+/* stage 4: publish */
+function renderPublish() {
+  var t = tally(), busy = build.busy.publish, r = build.result;
+  var h = '<div class="stage"><h2>Publish</h2><p class="lead">Publishing copies the certified entries into the store the chat agent searches. Drafts and rejected entries stay out, so the agent only ever relies on what a person approved.</p>';
+  h += '<div class="stats"><div class="stat"><b>' + t.certified + '</b><span>certified, will be published</span></div><div class="stat"><b>' + t.pending + '</b><span>certified but not yet published</span></div><div class="stat"><b>' + (t.draft + t.rejected) + '</b><span>draft or rejected, left out</span></div></div>';
+  h += '<div class="row"><button type="button" class="btn primary" data-act="publish"' + (busy || !t.certified ? ' disabled' : '') + '>' + (busy ? 'Publishing...' : 'Publish ' + t.certified + (t.certified === 1 ? ' entry' : ' entries')) + '</button>';
+  if (busy) h += '<span class="working">Writing the certified entries.</span>';
+  else if (!t.certified) h += '<span class="note">Certify at least one entry first.</span>';
+  h += '</div>' + noticeHTML('publish');
+  if (r) h += '<div class="okbox" role="status"><strong>Published ' + esc(String(r.published)) + (r.published === 1 ? ' entry' : ' entries') + '.</strong> Saved to <code>' + esc(r.yaml_path) + '</code>. <div class="row" style="margin-top:8px"><button type="button" class="btn primary" data-act="try">Try it in chat</button></div></div>';
+  else if (t.published) h += '<div class="callout">' + t.published + (t.published === 1 ? ' entry is' : ' entries are') + ' currently published. <button type="button" class="btn small" data-act="try">Try it in chat</button></div>';
+  if (t.total) {
+    h += '<div class="reset">';
+    if (build.confirmReset) h += '<div class="confirm" role="alertdialog" aria-label="Confirm reset"><p>This deletes all ' + t.total + ' generated ' + (t.total === 1 ? 'entry' : 'entries') + ' (drafts, certified and published) so you can start over. The hand-written ontology is not touched.</p><div class="row"><button type="button" class="btn danger" data-act="reset-go"' + (build.busy.reset ? ' disabled' : '') + '>' + (build.busy.reset ? 'Resetting...' : 'Yes, delete them') + '</button><button type="button" class="btn" data-act="reset-cancel"' + (build.busy.reset ? ' disabled' : '') + '>Keep them</button></div></div>';
+    else h += '<button type="button" class="linkbtn" data-act="reset-ask">Reset generated entries</button>';
+    h += noticeHTML('reset') + '</div>';
+  }
+  stagePane.innerHTML = h + '</div>';
+}
+function afterStoreChange() { state.onts.generated = null; loadHealth(); }
+function doPublish() {
+  if (build.busy.publish) return;
+  build.busy.publish = true; build.notice.publish = null; renderPublish();
+  req('POST', '/api/gen/publish').then(function (r) {
+    build.result = r; afterStoreChange();
+    entries().forEach(function (e) { if (e.status === 'certified') e.published = true; });
+    return req('GET', '/api/gen/state').then(applyGen).catch(function () {});
+  }).catch(function (e) { build.notice.publish = friendly(e, 'publish the entries'); })
+    .then(function () { build.busy.publish = false; renderBuild(); });
+}
+function doReset() {
+  if (build.busy.reset) return;
+  build.busy.reset = true; build.notice.reset = null; renderPublish();
+  req('POST', '/api/gen/reset').then(function () {
+    build.confirmReset = false; build.result = null; build.log = []; build.summary = null; build.edit = null; build.bulkNote = null; build.cardErr = {};
+    afterStoreChange();
+    return req('GET', '/api/gen/state').then(function (s) { applyGen(s); build.stage = landing(); });
+  }).catch(function (e) { build.notice.reset = friendly(e, 'reset the generated entries'); })
+    .then(function () { build.busy.reset = false; renderBuild(); });
+}
+function doProfile() {
+  if (build.busy.profile) return;
+  build.busy.profile = true; build.notice.profile = null; renderProfile();
+  req('POST', '/api/gen/profile').then(applyGen).catch(function (e) { build.notice.profile = friendly(e, 'profile the database'); })
+    .then(function () { build.busy.profile = false; renderBuild(); });
+}
+
+/* events */
+bvEl.addEventListener('click', function (e) {
+  var st = e.target.closest('[data-stage]'); if (st) { if (!st.disabled) goStage(st.dataset.stage); return; }
+  var a = e.target.closest('[data-act]'); if (!a || a.disabled) return;
+  var act = a.dataset.act, id = a.dataset.id;
+  switch (act) {
+    case 'reload': loadBuild(); break;
+    case 'profile': doProfile(); break;
+    case 'tables-all': case 'tables-none': tables().forEach(function (t) { build.selTables[t.name] = act === 'tables-all'; }); renderGenerate(); break;
+    case 'generate': startGenerate(); break;
+    case 'stop': if (build.abort) build.abort.abort(); break;
+    case 'filter': build.filter = a.dataset.v; refreshReview(); break;
+    case 'kind': build.kind = a.dataset.v; refreshReview(); break;
+    case 'certify': setStatus(id, 'certified'); break;
+    case 'reject': setStatus(id, 'rejected'); break;
+    case 'draft': setStatus(id, 'draft'); break;
+    case 'bulk': bulkCertify(); break;
+    case 'edit':
+      var en = findEntry(id); if (!en) break;
+      build.edit = { id:id, saving:false, errs:{}, general:null, v:{ name:en.name || '', description:en.description || '', synonyms:(en.synonyms || []).join(', '), columns:(en.columns || []).join(', '), sql:en.sql || '' } };
+      refreshReview(); var f = $('ef-name'); if (f) f.focus(); break;
+    case 'cancel': build.edit = null; refreshReview(); break;
+    case 'save': saveEdit(); break;
+    case 'publish': doPublish(); break;
+    case 'try': setMode('generated'); location.hash = '#chat'; break;
+    case 'reset-ask': build.confirmReset = true; renderPublish(); break;
+    case 'reset-cancel': build.confirmReset = false; renderPublish(); break;
+    case 'reset-go': doReset(); break;
+  }
+});
+bvEl.addEventListener('input', function (e) {
+  var f = e.target.dataset && e.target.dataset.f;
+  if (f && build.edit) build.edit.v[f] = e.target.value;
+});
+bvEl.addEventListener('change', function (e) {
+  var t = e.target;
+  if (t.dataset.tbl) {
+    var nm = t.dataset.tbl; build.selTables[nm] = t.checked; renderGenerate();
+    Array.prototype.forEach.call(stagePane.querySelectorAll('[data-tbl]'), function (x) { if (x.dataset.tbl === nm) x.focus(); });
+  }
+  else if (t.dataset.act === 'docs') build.useDocs = t.checked;
+});
+
+/* routing */
+function route() {
+  var v = location.hash === '#build' ? 'build' : 'chat';
+  $('chatView').hidden = v !== 'chat'; bvEl.hidden = v !== 'build';
+  $('seg').hidden = $('newChat').hidden = v !== 'chat';
+  Array.prototype.forEach.call($('nav').children, function (a) { if (a.dataset.view === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (v === 'build' && !build.started) { build.started = true; loadBuild(); }
+}
+window.addEventListener('hashchange', route);
+
 /* ---------- init ---------- */
-renderChat(); renderPanel(); loadHealth();
+route(); renderChat(); renderPanel(); loadHealth();
 getJSON('/api/suggestions').then(function (d) { state.suggestions = d.questions || []; if (!state.messages.length) renderChat(); }).catch(function () {});
 window.__app = state;
 })();
