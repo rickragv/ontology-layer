@@ -1,6 +1,6 @@
 ﻿# Ontology Chat
 
-**Same local model, same question, two different answers.** This demo shows what an ontology layer does for an AI agent that writes SQL: it tells the model what your columns and codes actually mean, so it stops guessing.
+**Same model, same question, two different answers.** Ontology Chat is an end-to-end working solution that shows what an ontology layer does for an AI agent that writes SQL: it tells the model what your columns and codes actually mean, so it stops guessing.
 
 ![Demo: the same question answered with and without the ontology](docs/demo.gif)
 
@@ -11,7 +11,7 @@ In the recording, the question is *"How many account owners who hold a gold cred
 | With ontology | **1** (correct) | Looked up "problem loan" and learned it means `loan.status IN ('B', 'D')` |
 | Baseline | **8** (wrong) | Saw only the raw schema and guessed that status `C` is also a problem |
 
-Everything runs locally: a [Google ADK](https://google.github.io/adk-docs/) agent on an [Ollama](https://ollama.com/) model, with Ollama embeddings for term search. No API keys.
+The full stack is included: a chat screen, a streaming API, a [Google ADK](https://google.github.io/adk-docs/) agent on an [Ollama](https://ollama.com/) model, embedding search over the ontology, and read-only SQL execution. No API keys are needed.
 
 ## Contents
 
@@ -67,7 +67,7 @@ Tested on Windows 11. The commands are the same on macOS and Linux.
 | Tool | What it is for | Install |
 |---|---|---|
 | [uv](https://docs.astral.sh/uv/getting-started/installation/) | Installs Python 3.12 and the project's packages | Windows: `winget install astral-sh.uv` |
-| [Ollama](https://ollama.com/download) | Runs the chat and embedding models locally | Download the installer from ollama.com |
+| [Ollama](https://ollama.com/download) | Runs the chat and embedding models | Download the installer from ollama.com |
 
 You do not need to install Python yourself. `uv` downloads the right version.
 
@@ -261,7 +261,7 @@ All settings are environment variables. Every one has a default, so the demo run
 |---|---|---|
 | `CHAT_MODEL` | `qwen3.5:9b` | Ollama chat model for the agent |
 | `EMBED_MODEL` | `bge-m3` | Ollama embedding model |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama address |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Ollama address |
 | `DB_PATH` | `data/financial.sqlite` | SQLite database the agent queries |
 | `ONTOLOGY_YAML` | `ontology/financial.yaml` | Ontology source file |
 | `ONTOLOGY_DB` | `data/ontology.db` | Built ontology store |

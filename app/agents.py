@@ -1,4 +1,4 @@
-"""Two Google ADK agents on a local Ollama model: `ontology` and `baseline`."""
+"""Two Google ADK agents on an Ollama model: `ontology` and `baseline`."""
 
 from google.adk.agents import Agent
 from google.adk.models.lite_llm import LiteLlm

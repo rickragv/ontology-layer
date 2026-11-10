@@ -23,7 +23,7 @@ DEFAULT_DB_NOTES = (
 DB_NOTES = os.environ.get("DB_NOTES", DEFAULT_DB_NOTES)
 STATIC_DIR = ROOT / "static"
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
 # On Windows "localhost" tries IPv6 (::1) first; Ollama listens on IPv4 only, which
 # adds ~2 s to every request. Use the IPv4 loopback address directly.
 OLLAMA_BASE_URL = OLLAMA_BASE_URL.replace("//localhost", "//127.0.0.1")

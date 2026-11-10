@@ -1,7 +1,7 @@
 [project]
 name = "ontology-layer"
 version = "0.1.0"
-description = "Demo: an ontology layer helps a local LLM write correct SQL (BIRD financial DB, Google ADK, Ollama)"
+description = "Ontology Chat: an ontology layer helps an LLM agent write correct SQL (Google ADK, Ollama, BIRD financial DB)"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

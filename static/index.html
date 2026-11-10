@@ -324,7 +324,7 @@ function msgHTML(m, idx) {
   h += '<button type="button" class="btn small details-btn" data-details="' + idx + '">Details</button></div>';
   h += stepsHTML(m);
   if (m.text) h += '<div class="md">' + md(m.text) + '</div>';
-  else if (!m.done) h += '<div class="working">' + (m.order.length ? 'Working on it. Local models can take up to a minute.' : 'Thinking. Local models can take up to a minute.') + '</div>';
+  else if (!m.done) h += '<div class="working">' + (m.order.length ? 'Working on it. This can take up to a minute.' : 'Thinking. This can take up to a minute.') + '</div>';
   if (m.error) h += '<div class="err" role="alert">' + esc(m.error) + '</div>';
   if (m.done && !m.text && !m.error) h += '<div class="foot">No answer text was returned.</div>';
   if (m.done && m.elapsed != null) h += '<div class="foot">' + (m.stopped ? 'Stopped after ' : 'Answered in ') + (m.elapsed / 1000).toFixed(1) + ' s</div>';
